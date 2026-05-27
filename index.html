@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupplyGrid — Electronic Component Search</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e8e8e8; min-height: 100vh; }
+    a { text-decoration: none; color: inherit; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 0 40px; height: 56px; border-bottom: 0.5px solid #1e1e1e; background: #0a0a0a; position: sticky; top: 0; z-index: 100; }
+    .nav-logo { font-size: 15px; font-weight: 500; color: #fff; }
+    .nav-logo span { color: #22c55e; }
+    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-links a { font-size: 13px; color: #666; }
+    .nav-links a:hover { color: #e8e8e8; }
+    .nav-btn { font-size: 12px; padding: 6px 16px; border-radius: 6px; border: 0.5px solid #333; background: transparent; color: #e8e8e8; cursor: pointer; font-family: inherit; }
+    .nav-btn.primary { background: #22c55e; color: #000; border-color: #22c55e; font-weight: 500; }
+    .hero { padding: 90px 40px 60px; text-align: center; max-width: 700px; margin: 0 auto; }
+    .hero h1 { font-size: 38px; font-weight: 500; color: #fff; letter-spacing: -0.5px; margin-bottom: 14px; line-height: 1.2; }
+    .hero h1 span { color: #22c55e; }
+    .hero p { font-size: 15px; color: #666; margin-bottom: 36px; line-height: 1.6; }
+    .search-wrap { max-width: 680px; margin: 0 auto 80px; padding: 0 40px; }
+    .search-box { display: flex; gap: 8px; }
+    .search-box input { flex: 1; background: #111; border: 0.5px solid #2a2a2a; border-radius: 8px; padding: 13px 16px; color: #e8e8e8; font-size: 14px; font-family: 'Courier New', monospace; }
+    .search-box input:focus { outline: none; border-color: #22c55e; }
+    .search-box input::placeholder { color: #444; }
+    .search-box select { background: #111; border: 0.5px solid #2a2a2a; border-radius: 8px; padding: 0 12px; color: #666; font-size: 13px; font-family: inherit; cursor: pointer; }
+    .search-btn { background: #22c55e; color: #000; border: none; border-radius: 8px; padding: 0 24px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .search-btn:hover { background: #16a34a; }
+    .features { max-width: 900px; margin: 0 auto; padding: 0 40px 80px; }
+    .features-title { font-size: 12px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; margin-bottom: 28px; }
+    .features-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .feature { background: #0e0e0e; border: 0.5px solid #1e1e1e; border-radius: 10px; padding: 20px; }
+    .feature-icon { font-size: 18px; margin-bottom: 10px; }
+    .feature-title { font-size: 13px; font-weight: 500; color: #e8e8e8; margin-bottom: 6px; }
+    .feature-desc { font-size: 12px; color: #555; line-height: 1.6; }
+    .supplier-cta { max-width: 680px; margin: 0 auto 80px; padding: 0 40px; }
+    .cta-box { background: #0e0e0e; border: 0.5px solid #1e1e1e; border-radius: 12px; padding: 28px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .cta-text h3 { font-size: 15px; font-weight: 500; color: #e8e8e8; margin-bottom: 6px; }
+    .cta-text p { font-size: 13px; color: #666; line-height: 1.5; }
+    .cta-btn { background: #22c55e; color: #000; border: none; border-radius: 8px; padding: 10px 24px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    footer { border-top: 0.5px solid #1a1a1a; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; }
+    footer span { font-size: 12px; color: #444; }
+  </style>
+</head>
+<body>
+<nav>
+  <div class="nav-logo">Supply<span>Grid</span></div>
+  <div class="nav-links">
+    <a href="index.html">Search</a>
+    <a href="dashboard.html">List inventory</a>
+    <button class="nav-btn" onclick="window.location.href='signup.html'">Sign in</button>
+    <button class="nav-btn primary" onclick="window.location.href='signup.html'">Join free</button>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>Find electronic components<br /><span>faster than anyone else</span></h1>
+  <p>Search stocked and brokered inventory from verified suppliers worldwide. Real contact info, no middlemen.</p>
+</div>
+
+<div class="search-wrap">
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Search part number e.g. TMS320F28335PGFA" onkeydown="if(event.key==='Enter') doSearch()" />
+    <select id="regionFilter">
+      <option value="">All regions</option>
+      <option value="Americas">Americas</option>
+      <option value="Europe">Europe</option>
+      <option value="Asia">Asia</option>
+    </select>
+    <button class="search-btn" onclick="doSearch()">Search →</button>
+  </div>
+</div>
+
+<div class="features">
+  <div class="features-title">Why SupplyGrid</div>
+  <div class="features-grid">
+    <div class="feature">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">Stocked vs brokered</div>
+      <div class="feature-desc">Every listing clearly flags whether the supplier physically has the part or is brokering it. No more guessing.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">✓</div>
+      <div class="feature-title">Verified suppliers</div>
+      <div class="feature-desc">Suppliers are rated on responsiveness, quoting, part quality, and return handling. Real reviews from real buyers.</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">◎</div>
+      <div class="feature-title">AI market intelligence</div>
+      <div class="feature-desc">Search demand signals, market trends, and price spreads. Know the market before you make contact.</div>
+    </div>
+  </div>
+</div>
+
+<div class="supplier-cta">
+  <div class="cta-box">
+    <div class="cta-text">
+      <h3>Are you a supplier or broker?</h3>
+      <p>Upload your entire inventory in one file. We handle the rest — part lookups, descriptions, and live search visibility.</p>
+    </div>
+    <button class="cta-btn" onclick="window.location.href='dashboard.html'">List your inventory →</button>
+  </div>
+</div>
+
+<footer>
+  <span>Part<strong>Bridge</strong></span>
+  <span>Real inventory · Real suppliers · No middlemen</span>
+</footer>
+
+<script>
+  function doSearch() {
+    const query = document.getElementById('searchInput').value.trim()
+    const region = document.getElementById('regionFilter').value
+    if (!query) return
+    window.location.href = `results.html?q=${encodeURIComponent(query)}&region=${encodeURIComponent(region)}`
+  }
+</script>
+</body>
+</html>

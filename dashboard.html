@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupplyGrid — Supplier Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e8e8e8; min-height: 100vh; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 0 40px; height: 56px; border-bottom: 0.5px solid #1e1e1e; background: #0a0a0a; position: sticky; top: 0; z-index: 100; }
+    .nav-logo { font-size: 15px; font-weight: 500; color: #fff; cursor: pointer; }
+    .nav-logo span { color: #22c55e; }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .nav-user { font-size: 13px; color: #666; }
+    .nav-btn { font-size: 12px; padding: 6px 16px; border-radius: 6px; border: 0.5px solid #333; background: transparent; color: #e8e8e8; cursor: pointer; font-family: inherit; }
+    .main { max-width: 1000px; margin: 0 auto; padding: 32px 40px; }
+    .page-title { font-size: 18px; font-weight: 500; color: #fff; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #666; margin-bottom: 28px; }
+    .tabs { display: flex; gap: 0; margin-bottom: 24px; border: 0.5px solid #1e1e1e; border-radius: 8px; overflow: hidden; width: fit-content; }
+    .tab { padding: 9px 20px; font-size: 13px; color: #666; cursor: pointer; background: transparent; border: none; font-family: inherit; }
+    .tab.active { background: #1a1a1a; color: #e8e8e8; font-weight: 500; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .section { background: #0e0e0e; border: 0.5px solid #1e1e1e; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-size: 13px; font-weight: 500; color: #e8e8e8; }
+    .section-sub { font-size: 12px; color: #555; margin-top: 3px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 11px; color: #666; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .field input, .field select { width: 100%; background: #141414; border: 0.5px solid #2a2a2a; border-radius: 6px; padding: 9px 12px; color: #e8e8e8; font-size: 13px; font-family: inherit; }
+    .field input:focus, .field select:focus { outline: none; border-color: #22c55e; }
+    .field input::placeholder { color: #444; }
+    .field input.mono { font-family: 'Courier New', monospace; text-transform: uppercase; }
+    .field-hint { font-size: 11px; color: #555; margin-top: 4px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .part-preview { background: #141414; border: 0.5px solid #1e1e1e; border-radius: 6px; padding: 12px; margin-bottom: 14px; display: none; }
+    .part-preview.visible { display: block; }
+    .pp-label { font-size: 10px; color: #22c55e; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+    .pp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .pp-field label { font-size: 10px; color: #555; display: block; margin-bottom: 2px; }
+    .pp-field span { font-size: 12px; color: #e8e8e8; }
+    .input-row { display: flex; gap: 8px; }
+    .input-row input { flex: 1; }
+    .lookup-btn { background: transparent; border: 0.5px solid #2a2a2a; border-radius: 6px; padding: 9px 14px; font-size: 12px; color: #888; cursor: pointer; font-family: inherit; white-space: nowrap; }
+    .lookup-btn:hover { background: #141414; }
+    .submit-btn { background: #22c55e; color: #000; border: none; border-radius: 8px; padding: 10px 24px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .submit-btn:hover { background: #16a34a; }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .status { font-size: 12px; padding: 10px 12px; border-radius: 6px; margin-top: 12px; display: none; }
+    .status.success { display: block; background: #0d1f0d; color: #22c55e; border: 0.5px solid #166534; }
+    .status.error { display: block; background: #1f0d0d; color: #f87171; border: 0.5px solid #991b1b; }
+    .status.loading { display: block; background: #141414; color: #888; border: 0.5px solid #2a2a2a; }
+
+    /* Bulk upload */
+    .upload-zone { border: 1px dashed #2a2a2a; border-radius: 10px; padding: 40px; text-align: center; cursor: pointer; margin-bottom: 16px; transition: border-color 0.2s; }
+    .upload-zone:hover { border-color: #22c55e; }
+    .upload-zone.dragover { border-color: #22c55e; background: #0d1f0d; }
+    .upload-icon { font-size: 32px; margin-bottom: 12px; }
+    .upload-title { font-size: 14px; font-weight: 500; color: #e8e8e8; margin-bottom: 6px; }
+    .upload-sub { font-size: 12px; color: #555; margin-bottom: 16px; }
+    .upload-btn { background: transparent; border: 0.5px solid #2a2a2a; border-radius: 6px; padding: 8px 20px; font-size: 12px; color: #888; cursor: pointer; font-family: inherit; }
+    .template-link { font-size: 12px; color: #22c55e; cursor: pointer; text-decoration: underline; margin-top: 8px; display: inline-block; }
+
+    .bulk-preview { background: #141414; border: 0.5px solid #1e1e1e; border-radius: 8px; overflow: hidden; margin-bottom: 16px; display: none; }
+    .bulk-preview.visible { display: block; }
+    .bulk-preview-head { padding: 12px 16px; border-bottom: 0.5px solid #1e1e1e; display: flex; align-items: center; justify-content: space-between; }
+    .bulk-preview-title { font-size: 13px; font-weight: 500; color: #e8e8e8; }
+    .bulk-preview-count { font-size: 12px; color: #22c55e; }
+    .bulk-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .bulk-table th { font-size: 10px; color: #555; font-weight: 500; text-align: left; padding: 8px 12px; border-bottom: 0.5px solid #1e1e1e; text-transform: uppercase; letter-spacing: 0.3px; }
+    .bulk-table td { padding: 8px 12px; border-bottom: 0.5px solid #1a1a1a; color: #e8e8e8; font-family: 'Courier New', monospace; }
+    .bulk-table tr:last-child td { border-bottom: none; }
+    .row-valid { color: #22c55e; }
+    .row-error { color: #f87171; }
+    .bulk-progress { margin-bottom: 16px; display: none; }
+    .bulk-progress.visible { display: block; }
+    .progress-bar-wrap { height: 4px; background: #1e1e1e; border-radius: 2px; margin-bottom: 8px; overflow: hidden; }
+    .progress-bar { height: 100%; background: #22c55e; border-radius: 2px; transition: width 0.3s; }
+    .progress-text { font-size: 12px; color: #888; }
+
+    .paste-area { width: 100%; background: #141414; border: 0.5px solid #2a2a2a; border-radius: 6px; padding: 12px; color: #e8e8e8; font-size: 12px; font-family: 'Courier New', monospace; resize: vertical; min-height: 120px; }
+    .paste-area:focus { outline: none; border-color: #22c55e; }
+    .paste-area::placeholder { color: #444; font-family: inherit; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { font-size: 11px; color: #555; font-weight: 500; text-align: left; padding: 8px 10px; border-bottom: 0.5px solid #1e1e1e; }
+    td { padding: 10px 10px; border-bottom: 0.5px solid #141414; color: #e8e8e8; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    .mono-sm { font-family: 'Courier New', monospace; font-size: 12px; color: #888; }
+    .badge { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 500; }
+    .badge-stocked { background: #0d1f0d; color: #22c55e; }
+    .badge-brokered { background: #1f1000; color: #f97316; }
+    .delete-btn { font-size: 11px; padding: 4px 10px; border-radius: 4px; background: transparent; border: 0.5px solid #2a2a2a; color: #666; cursor: pointer; font-family: inherit; }
+    .delete-btn:hover { border-color: #f87171; color: #f87171; }
+    .empty-state { text-align: center; padding: 40px; color: #555; font-size: 13px; }
+    .auth-wall { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; gap: 12px; }
+    .auth-wall h2 { font-size: 18px; font-weight: 500; }
+    .auth-wall p { font-size: 13px; color: #666; }
+    .auth-wall button { background: #22c55e; color: #000; border: none; border-radius: 8px; padding: 10px 24px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: #0e0e0e; border: 0.5px solid #1e1e1e; border-radius: 10px; padding: 16px; }
+    .stat-card-num { font-size: 22px; font-weight: 500; color: #fff; margin-bottom: 4px; }
+    .stat-card-label { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.3px; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo" onclick="window.location.href='index.html'">Supply<span>Grid</span></div>
+  <div class="nav-right">
+    <span class="nav-user" id="navUser"></span>
+    <button class="nav-btn" onclick="window.location.href='index.html'">Search parts</button>
+    <button class="nav-btn" onclick="doSignout()">Sign out</button>
+  </div>
+</nav>
+
+<div class="main" id="mainContent" style="display:none">
+  <div class="page-title">Supplier dashboard</div>
+  <div class="page-sub">Manage your inventory listings.</div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-card-num" id="statActive">0</div><div class="stat-card-label">Active listings</div></div>
+    <div class="stat-card"><div class="stat-card-num" id="statStocked">0</div><div class="stat-card-label">Stocked</div></div>
+    <div class="stat-card"><div class="stat-card-num" id="statBrokered">0</div><div class="stat-card-label">Brokered</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('bulk')">Bulk upload</button>
+    <button class="tab" onclick="switchTab('paste')">Paste part numbers</button>
+    <button class="tab" onclick="switchTab('single')">Single listing</button>
+    <button class="tab" onclick="switchTab('listings')">My listings</button>
+  </div>
+
+  <!-- BULK UPLOAD -->
+  <div class="panel active" id="panel-bulk">
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Upload inventory file</div>
+          <div class="section-sub">Excel or CSV · We auto-fill descriptions from Digi-Key</div>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <div class="upload-icon">📂</div>
+        <div class="upload-title">Drop your inventory file here</div>
+        <div class="upload-sub">Excel (.xlsx) or CSV · Required columns: Part Number, Quantity, Type (stocked/brokered)</div>
+        <button class="upload-btn" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">Choose file</button>
+        <br/>
+        <span class="template-link" onclick="event.stopPropagation(); downloadTemplate()">Download template</span>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(this.files[0])" />
+
+      <div class="bulk-preview" id="bulkPreview">
+        <div class="bulk-preview-head">
+          <div class="bulk-preview-title">Preview</div>
+          <div class="bulk-preview-count" id="bulkCount">0 rows</div>
+        </div>
+        <table class="bulk-table">
+          <thead><tr><th>Part number</th><th>Qty</th><th>DC</th><th>Type</th><th>Price</th><th>Status</th></tr></thead>
+          <tbody id="bulkTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="bulk-progress" id="bulkProgress">
+        <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+        <div class="progress-text" id="progressText">Processing...</div>
+      </div>
+
+      <button class="submit-btn" id="bulkSubmitBtn" onclick="submitBulk()" style="display:none">Upload all listings →</button>
+      <div class="status" id="bulkStatus"></div>
+    </div>
+  </div>
+
+  <!-- PASTE -->
+  <div class="panel" id="panel-paste">
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Paste part numbers</div>
+          <div class="section-sub">One per line · We look up each one automatically</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Inventory type for all pasted parts</label>
+        <select id="pasteType">
+          <option value="stocked">Stocked</option>
+          <option value="brokered">Brokered</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Part numbers</label>
+        <textarea class="paste-area" id="pasteArea" placeholder="TMS320F28335PGFA&#10;LM358DR&#10;STM32F103C8T6&#10;...one part number per line"></textarea>
+      </div>
+      <div class="field">
+        <label>Default quantity per part</label>
+        <input type="number" id="pasteQty" placeholder="e.g. 1000" min="1" />
+        <div class="field-hint">You can update individual quantities after uploading</div>
+      </div>
+      <button class="submit-btn" onclick="submitPaste()">Look up and post all →</button>
+      <div class="status" id="pasteStatus"></div>
+    </div>
+  </div>
+
+  <!-- SINGLE -->
+  <div class="panel" id="panel-single">
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Single listing</div>
+      </div>
+      <div class="field">
+        <label>Part number</label>
+        <input class="mono" type="text" id="partNumber" placeholder="e.g. TMS320F28335PGFA" oninput="this.value=this.value.toUpperCase(); debounceLookup()" />
+        <div class="field-hint">Include full suffix — TR, T, REEL · We look up details automatically</div>
+      </div>
+      <div class="part-preview" id="partPreview">
+        <div class="pp-label">✓ Part verified</div>
+        <div class="pp-grid">
+          <div class="pp-field"><label>Manufacturer</label><span id="prev-mfr">—</span></div>
+          <div class="pp-field"><label>Category</label><span id="prev-cat">—</span></div>
+          <div class="pp-field"><label>Package</label><span id="prev-pkg">—</span></div>
+          <div class="pp-field"><label>Description</label><span id="prev-desc">—</span></div>
+        </div>
+      </div>
+      <div id="lookupStatus" class="status"></div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Inventory type</label>
+          <select id="inventoryType">
+            <option value="">Select type</option>
+            <option value="stocked">Stocked</option>
+            <option value="brokered">Brokered</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Quantity</label>
+          <input type="number" id="quantity" placeholder="e.g. 4500" min="1" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Date code</label>
+        <input type="text" id="dateCode" placeholder="e.g. 2023+" class="mono" />
+      </div>
+      <button class="submit-btn" onclick="submitSingle()">Post listing →</button>
+      <div id="submitStatus" class="status"></div>
+    </div>
+  </div>
+
+  <!-- MY LISTINGS -->
+  <div class="panel" id="panel-listings">
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Your listings</div>
+        <button style="font-size:12px;color:#22c55e;background:none;border:none;cursor:pointer;font-family:inherit" onclick="loadListings()">Refresh</button>
+      </div>
+      <div id="listingsTable"><div class="empty-state">Loading...</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="auth-wall" id="authWall" style="display:none">
+  <h2>Sign in to manage inventory</h2>
+  <p>Create a supplier account to list your inventory on SupplyGrid.</p>
+  <button onclick="window.location.href='signup.html'">Sign in →</button>
+</div>
+
+<script>
+  const { createClient } = supabase
+  const SUPABASE_URL = 'https://zcqfwkbgrevaixqjytzc.supabase.co'
+  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjcWZ3a2JncmV2YWl4cWp5dHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDkzMDUsImV4cCI6MjA5NTEyNTMwNX0.euaNHnoN0KoG23IRCBcK2x2K-OgB4opFF9dZRsoFAds'
+  const client = createClient(SUPABASE_URL, ANON_KEY)
+
+  let currentUser = null
+  let partVerified = false
+  let bulkRows = []
+
+  async function init() {
+    const { data: { session } } = await client.auth.getSession()
+    if (!session) { document.getElementById('authWall').style.display = 'flex'; return }
+    currentUser = session.user
+    document.getElementById('navUser').textContent = currentUser.email
+    document.getElementById('mainContent').style.display = 'block'
+    loadListings()
+  }
+
+  async function doSignout() {
+    await client.auth.signOut()
+    window.location.href = 'index.html'
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.remove('active'))
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+    document.getElementById('panel-' + name).classList.add('active')
+    event.target.classList.add('active')
+    if (name === 'listings') loadListings()
+  }
+
+  // TEMPLATE DOWNLOAD
+  function downloadTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Part Number', 'Quantity', 'Type', 'Date Code', 'Price'],
+      ['TMS320F28335PGFA', 1000, 'stocked', '2023+', ''],
+      ['LM358DR', 5000, 'brokered', '2022+', ''],
+    ])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventory')
+    XLSX.writeFile(wb, 'supplygrid-inventory-template.xlsx')
+  }
+
+  // DRAG AND DROP
+  function handleDragOver(e) { e.preventDefault(); document.getElementById('uploadZone').classList.add('dragover') }
+  function handleDragLeave(e) { document.getElementById('uploadZone').classList.remove('dragover') }
+  function handleDrop(e) {
+    e.preventDefault()
+    document.getElementById('uploadZone').classList.remove('dragover')
+    const file = e.dataTransfer.files[0]
+    if (file) handleFile(file)
+  }
+
+  function handleFile(file) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target.result)
+      const wb = XLSX.read(data, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+      parseRows(rows)
+    }
+    reader.readAsArrayBuffer(file)
+  }
+
+  function parseRows(rows) {
+    bulkRows = rows.map(r => {
+      const pn = (r['Part Number'] || r['part_number'] || r['PartNumber'] || '').toString().trim().toUpperCase()
+      const qty = parseInt(r['Quantity'] || r['quantity'] || r['QTY'] || 0)
+      const type = (r['Type'] || r['type'] || r['inventory_type'] || 'stocked').toString().toLowerCase().trim()
+      const dc = (r['Date Code'] || r['date_code'] || r['DC'] || '').toString().trim()
+      const price = parseFloat(r['Price'] || r['price'] || 0) || null
+      const valid = pn.length > 0 && qty > 0 && ['stocked','brokered'].includes(type)
+      return { pn, qty, type, dc, price, valid }
+    }).filter(r => r.pn)
+
+    const preview = document.getElementById('bulkPreview')
+    const tbody = document.getElementById('bulkTableBody')
+    document.getElementById('bulkCount').textContent = `${bulkRows.length} rows`
+    tbody.innerHTML = bulkRows.slice(0, 10).map(r => `
+      <tr>
+        <td>${r.pn}</td>
+        <td>${r.qty}</td>
+        <td>${r.dc || '—'}</td>
+        <td>${r.type}</td>
+        <td>${r.price ? '$' + r.price : '—'}</td>
+        <td class="${r.valid ? 'row-valid' : 'row-error'}">${r.valid ? '✓ Ready' : '✗ Check data'}</td>
+      </tr>
+    `).join('')
+    if (bulkRows.length > 10) tbody.innerHTML += `<tr><td colspan="6" style="color:#555;text-align:center;padding:10px">...and ${bulkRows.length - 10} more rows</td></tr>`
+    preview.classList.add('visible')
+    document.getElementById('bulkSubmitBtn').style.display = 'block'
+  }
+
+  async function submitBulk() {
+    const valid = bulkRows.filter(r => r.valid)
+    if (!valid.length) return
+    const btn = document.getElementById('bulkSubmitBtn')
+    const progress = document.getElementById('bulkProgress')
+    const progressBar = document.getElementById('progressBar')
+    const progressText = document.getElementById('progressText')
+    const status = document.getElementById('bulkStatus')
+    btn.disabled = true
+    progress.classList.add('visible')
+    const { data: { session } } = await client.auth.getSession()
+    let done = 0, succeeded = 0, failed = 0
+    for (const row of valid) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-listing`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ part_number: row.pn, inventory_type: row.type, quantity: row.qty, date_code: row.dc, condition: 'Factory New', price_visible: !!row.price, price: row.price })
+        })
+        const data = await res.json()
+        if (data.success) succeeded++
+        else failed++
+      } catch { failed++ }
+      done++
+      const pct = Math.round((done / valid.length) * 100)
+      progressBar.style.width = pct + '%'
+      progressText.textContent = `Processing ${done} of ${valid.length}...`
+    }
+    status.className = 'status success'
+    status.textContent = `Done. ${succeeded} listings posted successfully.${failed ? ` ${failed} failed.` : ''}`
+    btn.disabled = false
+    loadListings()
+  }
+
+  async function submitPaste() {
+    const raw = document.getElementById('pasteArea').value.trim()
+    const type = document.getElementById('pasteType').value
+    const qty = parseInt(document.getElementById('pasteQty').value) || 1
+    const status = document.getElementById('pasteStatus')
+    if (!raw) return
+    const parts = raw.split('\n').map(p => p.trim().toUpperCase()).filter(Boolean)
+    if (!parts.length) return
+    status.className = 'status loading'
+    status.textContent = `Processing ${parts.length} part numbers...`
+    const { data: { session } } = await client.auth.getSession()
+    let succeeded = 0, failed = 0
+    for (const pn of parts) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-listing`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ part_number: pn, inventory_type: type, quantity: qty, date_code: '', condition: 'Factory New', price_visible: false, price: null })
+        })
+        const data = await res.json()
+        if (data.success) succeeded++
+        else failed++
+      } catch { failed++ }
+    }
+    status.className = 'status success'
+    status.textContent = `Done. ${succeeded} listings posted.${failed ? ` ${failed} failed — part not found in database.` : ''}`
+    loadListings()
+  }
+
+  let lookupTimer = null
+  function debounceLookup() {
+    clearTimeout(lookupTimer)
+    const val = document.getElementById('partNumber').value.trim()
+    if (val.length < 4) return
+    lookupTimer = setTimeout(() => lookupPart(), 600)
+  }
+
+  async function lookupPart() {
+    const partNumber = document.getElementById('partNumber').value.trim()
+    if (!partNumber) return
+    const status = document.getElementById('lookupStatus')
+    const preview = document.getElementById('partPreview')
+    status.className = 'status loading'
+    status.textContent = 'Looking up part...'
+    partVerified = false
+    preview.classList.remove('visible')
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/rapid-action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
+        body: JSON.stringify({ partNumber })
+      })
+      const data = await res.json()
+      if (data.part) {
+        document.getElementById('prev-mfr').textContent = data.part.manufacturer || '—'
+        document.getElementById('prev-cat').textContent = data.part.category || '—'
+        document.getElementById('prev-pkg').textContent = data.part.package || '—'
+        document.getElementById('prev-desc').textContent = data.part.description || '—'
+        preview.classList.add('visible')
+        status.className = 'status'
+        partVerified = true
+      } else {
+        status.className = 'status error'
+        status.textContent = 'Part not found.'
+      }
+    } catch { status.className = 'status error'; status.textContent = 'Lookup failed.' }
+  }
+
+  async function submitSingle() {
+    if (!partVerified) { document.getElementById('lookupStatus').className = 'status error'; document.getElementById('lookupStatus').textContent = 'Look up the part number first.'; return }
+    const pn = document.getElementById('partNumber').value.trim()
+    const type = document.getElementById('inventoryType').value
+    const qty = document.getElementById('quantity').value
+    const dc = document.getElementById('dateCode').value
+    if (!type || !qty) { document.getElementById('submitStatus').className = 'status error'; document.getElementById('submitStatus').textContent = 'Fill in all required fields.'; return }
+    const status = document.getElementById('submitStatus')
+    status.className = 'status loading'
+    status.textContent = 'Posting...'
+    const { data: { session } } = await client.auth.getSession()
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-listing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ part_number: pn, inventory_type: type, quantity: parseInt(qty), date_code: dc, condition: 'Factory New', price_visible: false, price: null })
+      })
+      const data = await res.json()
+      if (data.success) { status.className = 'status success'; status.textContent = 'Listing posted.'; partVerified = false; document.getElementById('partNumber').value = ''; document.getElementById('partPreview').classList.remove('visible'); loadListings() }
+      else throw new Error(data.error)
+    } catch(err) { status.className = 'status error'; status.textContent = err.message }
+  }
+
+  async function loadListings() {
+    if (!currentUser) return
+    document.getElementById('listingsTable').innerHTML = '<div class="empty-state">Loading...</div>'
+
+    const { data: listings, error } = await client
+      .from('listings')
+      .select('id, part_number_listed, inventory_type, quantity, date_code, created_at, part_id')
+      .eq('supplier_id', currentUser.id)
+      .eq('active', true)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      document.getElementById('listingsTable').innerHTML = '<div class="empty-state">Could not load listings: ' + error.message + '</div>'
+      return
+    }
+
+    if (!listings || !listings.length) {
+      document.getElementById('statActive').textContent = '0'
+      document.getElementById('statStocked').textContent = '0'
+      document.getElementById('statBrokered').textContent = '0'
+      document.getElementById('listingsTable').innerHTML = '<div class="empty-state">No listings yet. Post your first listing above.</div>'
+      return
+    }
+
+    // Fetch part details separately
+    const partIds = [...new Set(listings.map(l => l.part_id).filter(Boolean))]
+    let partsMap = {}
+    if (partIds.length) {
+      const { data: parts } = await client.from('parts').select('id, part_number, manufacturer').in('id', partIds)
+      if (parts) parts.forEach(p => partsMap[p.id] = p)
+    }
+
+    document.getElementById('statActive').textContent = listings.length
+    document.getElementById('statStocked').textContent = listings.filter(l => l.inventory_type === 'stocked').length
+    document.getElementById('statBrokered').textContent = listings.filter(l => l.inventory_type === 'brokered').length
+
+    const rows = listings.map(l => {
+      const part = partsMap[l.part_id]
+      return `
+        <tr>
+          <td style="font-family:monospace;font-size:12px">${l.part_number_listed}</td>
+          <td style="font-size:12px;color:#888">${part?.manufacturer || '—'}</td>
+          <td class="mono-sm">${l.date_code || '—'}</td>
+          <td style="font-family:monospace;font-size:13px">${l.quantity?.toLocaleString() || '—'}</td>
+          <td><span class="badge badge-${l.inventory_type}">${l.inventory_type}</span></td>
+          <td style="font-size:11px;color:#555">${new Date(l.created_at).toLocaleDateString()}</td>
+          <td><button class="delete-btn" onclick="deleteListing('${l.id}')">Remove</button></td>
+        </tr>
+      `
+    }).join('')
+
+    document.getElementById('listingsTable').innerHTML = `
+      <table>
+        <thead><tr><th>Part number</th><th>MFR</th><th>DC</th><th>Qty</th><th>Type</th><th>Posted</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
+  }
+
+  async function deleteListing(id) {
+    if (!confirm('Remove this listing?')) return
+    await client.from('listings').update({ active: false }).eq('id', id)
+    loadListings()
+  }
+
+  init()
+</script>
+</body>
+</html>
