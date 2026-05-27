@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupplyGrid — Sign Up</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e8e8e8; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; }
+    .card { width: 100%; max-width: 420px; background: #0e0e0e; border: 0.5px solid #1e1e1e; border-radius: 12px; padding: 32px; }
+    .logo { font-size: 15px; font-weight: 500; color: #fff; text-align: center; margin-bottom: 24px; }
+    .logo span { color: #22c55e; }
+    .tabs { display: flex; gap: 0; margin-bottom: 24px; border: 0.5px solid #1e1e1e; border-radius: 8px; overflow: hidden; }
+    .tab { flex: 1; padding: 9px 0; text-align: center; font-size: 13px; color: #666; cursor: pointer; background: transparent; border: none; font-family: inherit; }
+    .tab.active { background: #1a1a1a; color: #e8e8e8; font-weight: 500; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 11px; color: #666; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .field input, .field select { width: 100%; background: #141414; border: 0.5px solid #2a2a2a; border-radius: 6px; padding: 10px 12px; color: #e8e8e8; font-size: 13px; font-family: inherit; }
+    .field input:focus, .field select:focus { outline: none; border-color: #22c55e; }
+    .field input::placeholder { color: #444; }
+    .submit-btn { width: 100%; background: #22c55e; color: #000; border: none; border-radius: 8px; padding: 11px 0; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; margin-top: 8px; }
+    .submit-btn:hover { background: #16a34a; }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .divider { text-align: center; font-size: 12px; color: #444; margin: 16px 0; }
+    .account-type { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .type-btn { padding: 10px; border: 0.5px solid #2a2a2a; border-radius: 8px; background: transparent; color: #666; font-size: 12px; cursor: pointer; font-family: inherit; text-align: center; }
+    .type-btn.selected { border-color: #22c55e; color: #22c55e; background: #0d1f0d; }
+    .type-label { font-size: 11px; color: #666; text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .status { font-size: 12px; padding: 10px 12px; border-radius: 6px; margin-top: 12px; display: none; }
+    .status.success { display: block; background: #0d1f0d; color: #22c55e; border: 0.5px solid #166534; }
+    .status.error { display: block; background: #1f0d0d; color: #f87171; border: 0.5px solid #991b1b; }
+    .back-link { font-size: 12px; color: #555; text-align: center; margin-top: 16px; cursor: pointer; }
+    .back-link:hover { color: #e8e8e8; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">Supply<span>Grid</span></div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabSignup" onclick="switchTab('signup')">Create account</button>
+    <button class="tab" id="tabLogin" onclick="switchTab('login')">Sign in</button>
+  </div>
+
+  <div id="signupForm">
+    <div class="type-label">I am a</div>
+    <div class="account-type">
+      <button class="type-btn selected" id="typeBuyer" onclick="selectType('buyer')">🔍 Buyer</button>
+      <button class="type-btn" id="typeSupplier" onclick="selectType('supplier')">📦 Supplier</button>
+    </div>
+
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="signupEmail" placeholder="you@company.com" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="signupPassword" placeholder="Min 8 characters" />
+    </div>
+    <div class="field" id="companyField">
+      <label>Company name</label>
+      <input type="text" id="signupCompany" placeholder="Your company" />
+    </div>
+    <div class="field" id="regionField" style="display:none">
+      <label>Region</label>
+      <select id="signupRegion">
+        <option value="Americas">Americas</option>
+        <option value="Europe">Europe</option>
+        <option value="Asia">Asia</option>
+      </select>
+    </div>
+    <button class="submit-btn" onclick="doSignup()">Create free account →</button>
+    <div class="status" id="signupStatus"></div>
+  </div>
+
+  <div id="loginForm" style="display:none">
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@company.com" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Your password" />
+    </div>
+    <button class="submit-btn" onclick="doLogin()">Sign in →</button>
+    <div class="status" id="loginStatus"></div>
+  </div>
+
+  <div class="back-link" onclick="window.location.href='index.html'">← Back to search</div>
+</div>
+
+<script>
+  const { createClient } = supabase
+  const client = createClient('https://zcqfwkbgrevaixqjytzc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjcWZ3a2JncmV2YWl4cWp5dHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDkzMDUsImV4cCI6MjA5NTEyNTMwNX0.euaNHnoN0KoG23IRCBcK2x2K-OgB4opFF9dZRsoFAds')
+
+  let accountType = 'buyer'
+
+  function switchTab(tab) {
+    document.getElementById('signupForm').style.display = tab === 'signup' ? 'block' : 'none'
+    document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none'
+    document.getElementById('tabSignup').classList.toggle('active', tab === 'signup')
+    document.getElementById('tabLogin').classList.toggle('active', tab === 'login')
+  }
+
+  function selectType(type) {
+    accountType = type
+    document.getElementById('typeBuyer').classList.toggle('selected', type === 'buyer')
+    document.getElementById('typeSupplier').classList.toggle('selected', type === 'supplier')
+    document.getElementById('regionField').style.display = type === 'supplier' ? 'block' : 'none'
+  }
+
+  async function doSignup() {
+    const email = document.getElementById('signupEmail').value.trim()
+    const password = document.getElementById('signupPassword').value
+    const company = document.getElementById('signupCompany').value.trim()
+    const region = document.getElementById('signupRegion').value
+    const status = document.getElementById('signupStatus')
+
+    if (!email || !password) {
+      status.className = 'status error'
+      status.textContent = 'Email and password are required.'
+      return
+    }
+
+    status.className = 'status'
+    status.style.display = 'block'
+    status.textContent = 'Creating your account...'
+
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { company_name: company, account_type: accountType, region }
+      }
+    })
+
+    if (error) {
+      status.className = 'status error'
+      status.textContent = error.message
+      return
+    }
+
+    if (accountType === 'supplier' && company) {
+      await client.from('suppliers').insert({
+        id: data.user.id,
+        company_name: company,
+        email,
+        region,
+        member_tier: 'free'
+      })
+    }
+
+    status.className = 'status success'
+    status.textContent = 'Account created. Check your email to confirm then sign in.'
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim()
+    const password = document.getElementById('loginPassword').value
+    const status = document.getElementById('loginStatus')
+
+    if (!email || !password) {
+      status.className = 'status error'
+      status.textContent = 'Email and password are required.'
+      return
+    }
+
+    status.className = 'status'
+    status.style.display = 'block'
+    status.textContent = 'Signing in...'
+
+    const { data, error } = await client.auth.signInWithPassword({ email, password })
+
+    if (error) {
+      status.className = 'status error'
+      status.textContent = error.message
+      return
+    }
+
+    window.location.href = 'dashboard.html'
+  }
+</script>
+</body>
+</html>
