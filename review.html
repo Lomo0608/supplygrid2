@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupplyGrid — Leave a Review</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e8e8e8; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; }
+    .card { width: 100%; max-width: 480px; background: #0e0e0e; border: 0.5px solid #1e1e1e; border-radius: 12px; padding: 32px; }
+    .logo { font-size: 15px; font-weight: 500; color: #fff; margin-bottom: 24px; }
+    .logo span { color: #22c55e; }
+    .title { font-size: 17px; font-weight: 500; color: #fff; margin-bottom: 6px; }
+    .sub { font-size: 13px; color: #666; margin-bottom: 28px; line-height: 1.5; }
+    .criteria { display: flex; flex-direction: column; gap: 20px; margin-bottom: 28px; }
+    .criterion { display: flex; flex-direction: column; gap: 8px; }
+    .criterion-label { font-size: 13px; color: #e8e8e8; font-weight: 500; }
+    .criterion-sub { font-size: 11px; color: #555; margin-top: -4px; }
+    .stars-row { display: flex; gap: 8px; }
+    .star { font-size: 28px; cursor: pointer; color: #2a2a2a; transition: color 0.1s; line-height: 1; }
+    .star.filled { color: #facc15; }
+    .star:hover { color: #facc15; }
+    .divider { border: none; border-top: 0.5px solid #1e1e1e; margin: 4px 0 20px; }
+    .submit-btn { width: 100%; background: #22c55e; color: #000; border: none; border-radius: 8px; padding: 12px 0; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .submit-btn:hover { background: #16a34a; }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .status { font-size: 13px; padding: 12px 14px; border-radius: 8px; margin-top: 14px; display: none; text-align: center; }
+    .status.success { display: block; background: #0d1f0d; color: #22c55e; border: 0.5px solid #166534; }
+    .status.error { display: block; background: #1f0d0d; color: #f87171; border: 0.5px solid #991b1b; }
+    .already-reviewed { text-align: center; padding: 20px 0; }
+    .already-reviewed h3 { font-size: 16px; font-weight: 500; color: #e8e8e8; margin-bottom: 8px; }
+    .already-reviewed p { font-size: 13px; color: #666; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">Supply<span>Grid</span></div>
+
+  <div id="reviewForm">
+    <div class="title" id="reviewTitle">Rate your experience</div>
+    <div class="sub" id="reviewSub">Loading supplier details...</div>
+
+    <div class="criteria">
+      <div class="criterion">
+        <div class="criterion-label">Responsiveness</div>
+        <div class="criterion-sub">Did they reply promptly to your inquiry?</div>
+        <div class="stars-row" id="stars-responsiveness">
+          <span class="star" onclick="setRating('responsiveness', 1)">★</span>
+          <span class="star" onclick="setRating('responsiveness', 2)">★</span>
+          <span class="star" onclick="setRating('responsiveness', 3)">★</span>
+          <span class="star" onclick="setRating('responsiveness', 4)">★</span>
+          <span class="star" onclick="setRating('responsiveness', 5)">★</span>
+        </div>
+      </div>
+
+      <div class="criterion">
+        <div class="criterion-label">Quoted the customer</div>
+        <div class="criterion-sub">Did they actually send you a quote?</div>
+        <div class="stars-row" id="stars-quoted">
+          <span class="star" onclick="setRating('quoted', 1)">★</span>
+          <span class="star" onclick="setRating('quoted', 2)">★</span>
+          <span class="star" onclick="setRating('quoted', 3)">★</span>
+          <span class="star" onclick="setRating('quoted', 4)">★</span>
+          <span class="star" onclick="setRating('quoted', 5)">★</span>
+        </div>
+      </div>
+
+      <div class="criterion">
+        <div class="criterion-label">Listing accuracy</div>
+        <div class="criterion-sub">Did quantity and specs match what was listed?</div>
+        <div class="stars-row" id="stars-accuracy">
+          <span class="star" onclick="setRating('accuracy', 1)">★</span>
+          <span class="star" onclick="setRating('accuracy', 2)">★</span>
+          <span class="star" onclick="setRating('accuracy', 3)">★</span>
+          <span class="star" onclick="setRating('accuracy', 4)">★</span>
+          <span class="star" onclick="setRating('accuracy', 5)">★</span>
+        </div>
+      </div>
+
+      <div class="criterion">
+        <div class="criterion-label">Delivery and part quality</div>
+        <div class="criterion-sub">Were parts authentic, correct, and delivered on time?</div>
+        <div class="stars-row" id="stars-quality">
+          <span class="star" onclick="setRating('quality', 1)">★</span>
+          <span class="star" onclick="setRating('quality', 2)">★</span>
+          <span class="star" onclick="setRating('quality', 3)">★</span>
+          <span class="star" onclick="setRating('quality', 4)">★</span>
+          <span class="star" onclick="setRating('quality', 5)">★</span>
+        </div>
+      </div>
+
+      <div class="criterion">
+        <div class="criterion-label">Return handling</div>
+        <div class="criterion-sub">If there was an issue, how did they resolve it?</div>
+        <div class="stars-row" id="stars-returns">
+          <span class="star" onclick="setRating('returns', 1)">★</span>
+          <span class="star" onclick="setRating('returns', 2)">★</span>
+          <span class="star" onclick="setRating('returns', 3)">★</span>
+          <span class="star" onclick="setRating('returns', 4)">★</span>
+          <span class="star" onclick="setRating('returns', 5)">★</span>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+    <button class="submit-btn" id="submitBtn" onclick="submitReview()">Submit review →</button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="already-reviewed" id="alreadyReviewed" style="display:none">
+    <h3>Already reviewed</h3>
+    <p>You have already submitted a review for this supplier. Thank you for your feedback.</p>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://zcqfwkbgrevaixqjytzc.supabase.co'
+  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjcWZ3a2JncmV2YWl4cWp5dHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDkzMDUsImV4cCI6MjA5NTEyNTMwNX0.euaNHnoN0KoG23IRCBcK2x2K-OgB4opFF9dZRsoFAds'
+
+  const params = new URLSearchParams(window.location.search)
+  const clickId = params.get('click_id')
+  const supplierId = params.get('supplier_id')
+
+  const ratings = {
+    responsiveness: 0,
+    quoted: 0,
+    accuracy: 0,
+    quality: 0,
+    returns: 0
+  }
+
+  let buyerEmail = ''
+
+  async function init() {
+    if (!clickId || !supplierId) {
+      document.getElementById('reviewSub').textContent = 'Invalid review link.'
+      return
+    }
+
+    // Load supplier name and click details
+    const [supplierRes, clickRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/suppliers?id=eq.${supplierId}&select=company_name`, {
+        headers: { 'apikey': ANON_KEY }
+      }),
+      fetch(`${SUPABASE_URL}/rest/v1/contact_clicks?id=eq.${clickId}&select=*`, {
+        headers: { 'apikey': ANON_KEY }
+      })
+    ])
+
+    const suppliers = await supplierRes.json()
+    const clicks = await clickRes.json()
+
+    if (!suppliers.length || !clicks.length) {
+      document.getElementById('reviewSub').textContent = 'Invalid review link.'
+      return
+    }
+
+    if (clicks[0].reviewed) {
+      document.getElementById('reviewForm').style.display = 'none'
+      document.getElementById('alreadyReviewed').style.display = 'block'
+      return
+    }
+
+    buyerEmail = clicks[0].buyer_email
+    const supplierName = suppliers[0].company_name
+    document.getElementById('reviewTitle').textContent = `Rate your experience with ${supplierName}`
+    document.getElementById('reviewSub').textContent = `Your honest review helps other buyers on SupplyGrid make better decisions. Takes less than 60 seconds.`
+  }
+
+  function setRating(criterion, value) {
+    ratings[criterion] = value
+    const stars = document.querySelectorAll(`#stars-${criterion} .star`)
+    stars.forEach((s, i) => s.classList.toggle('filled', i < value))
+  }
+
+  async function submitReview() {
+    const allRated = Object.values(ratings).every(r => r > 0)
+    if (!allRated) {
+      const status = document.getElementById('status')
+      status.className = 'status error'
+      status.textContent = 'Please rate all five criteria before submitting.'
+      return
+    }
+
+    const btn = document.getElementById('submitBtn')
+    const status = document.getElementById('status')
+    btn.disabled = true
+    status.className = 'status'
+    status.style.display = 'block'
+    status.textContent = 'Submitting...'
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
+        body: JSON.stringify({
+          contact_click_id: clickId,
+          supplier_id: supplierId,
+          buyer_email: buyerEmail,
+          rating_responsiveness: ratings.responsiveness,
+          rating_quoted: ratings.quoted,
+          rating_accuracy: ratings.accuracy,
+          rating_quality: ratings.quality,
+          rating_returns: ratings.returns
+        })
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        status.className = 'status success'
+        status.textContent = 'Review submitted. Thank you for helping the SupplyGrid community.'
+        btn.style.display = 'none'
+      } else {
+        throw new Error(data.error || 'Submission failed')
+      }
+    } catch(err) {
+      status.className = 'status error'
+      status.textContent = err.message
+      btn.disabled = false
+    }
+  }
+
+  init()
+</script>
+</body>
+</html>
