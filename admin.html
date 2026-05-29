@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupplyGrid — Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #111; min-height: 100vh; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 0 40px; height: 56px; border-bottom: 0.5px solid #1e1e1e; background: #111; }
+    .nav-logo { font-size: 15px; font-weight: 500; color: #fff; }
+    .nav-logo em { font-style: normal; color: #f59e0b; }
+    .nav-tag { font-size: 11px; background: #1a1a1a; border: 0.5px solid #333; border-radius: 4px; padding: 2px 8px; color: #666; margin-left: 8px; }
+    .main { max-width: 1100px; margin: 0 auto; padding: 32px 40px; }
+    .page-title { font-size: 18px; font-weight: 500; color: #fff; margin-bottom: 4px; }
+    .page-sub { font-size: 13px; color: #666; margin-bottom: 28px; }
+    .tabs { display: flex; gap: 0; margin-bottom: 24px; border: 0.5px solid #e8e8e8; border-radius: 8px; overflow: hidden; width: fit-content; }
+    .tab { padding: 9px 20px; font-size: 13px; color: #666; cursor: pointer; background: transparent; border: none; font-family: inherit; }
+    .tab.active { background: #1a1a1a; color: #111; font-weight: 500; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .section { background: #fff; border: 0.5px solid #e8e8e8; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+    .section-title { font-size: 13px; font-weight: 500; color: #111; margin-bottom: 16px; }
+    .request-card { background: #f5f5f5; border: 0.5px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+    .request-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .request-name { font-size: 14px; font-weight: 500; color: #111; }
+    .request-email { font-size: 12px; color: #666; margin-top: 2px; }
+    .status-badge { font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+    .status-pending { background: #1a1000; color: #92400e; border: 0.5px solid #fde68a; }
+    .status-approved { background: #0d1f0d; color: #166534; border: 0.5px solid #bbf7d0; }
+    .status-rejected { background: #1f0d0d; color: #991b1b; border: 0.5px solid #991b1b; }
+    .request-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .req-field { display: flex; flex-direction: column; gap: 2px; }
+    .req-label { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.3px; }
+    .req-val { font-size: 12px; color: #111; }
+    .certs-list { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .cert-tag { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: #1a1200; color: #fbbf24; border: 0.5px solid #854d0e; }
+    .docs-list { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .doc-link { font-size: 11px; padding: 4px 10px; border-radius: 4px; background: #f5f5f5; border: 0.5px solid #e0e0e0; color: #888; cursor: pointer; }
+    .doc-link:hover { color: #f59e0b; border-color: #f59e0b; }
+    .approve-section { border-top: 0.5px solid #1e1e1e; padding-top: 14px; }
+    .approve-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .cert-approve-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #888; }
+    .cert-approve-item input[type="checkbox"] { accent-color: #f59e0b; }
+    .notes-input { width: 100%; background: #111; border: 0.5px solid #e0e0e0; border-radius: 6px; padding: 8px 10px; color: #111; font-size: 12px; font-family: inherit; resize: vertical; min-height: 60px; margin-bottom: 10px; }
+    .action-row { display: flex; gap: 8px; }
+    .approve-btn { background: #f59e0b; color: #000; border: none; border-radius: 4px; padding: 8px 20px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .reject-btn { background: transparent; border: 0.5px solid #fecaca; color: #991b1b; border-radius: 6px; padding: 8px 20px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { font-size: 11px; color: #555; font-weight: 500; text-align: left; padding: 8px 10px; border-bottom: 0.5px solid #1e1e1e; }
+    td { padding: 10px 10px; border-bottom: 0.5px solid #141414; color: #111; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    .mono { font-family: 'Courier New', monospace; font-size: 12px; color: #888; }
+    .tier-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .tier-0 { background: #1a1a1a; color: #555; }
+    .tier-2 { background: #0d1a3a; color: #60a5fa; border: 0.5px solid #1e3a8a; }
+    .tier-3 { background: #1a1200; color: #fbbf24; border: 0.5px solid #854d0e; }
+    .empty { text-align: center; padding: 40px; color: #555; font-size: 13px; }
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: #fff; border: 0.5px solid #e8e8e8; border-radius: 10px; padding: 16px; }
+    .stat-num { font-size: 22px; font-weight: 500; color: #fff; margin-bottom: 4px; }
+    .stat-label { font-size: 11px; color: #555; text-transform: uppercase; letter-spacing: 0.3px; }
+
+    /* Login wall */
+    .login-wall { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; gap: 16px; }
+    .login-card { background: #fff; border: 0.5px solid #e8e8e8; border-radius: 12px; padding: 32px; width: 100%; max-width: 360px; }
+    .login-title { font-size: 16px; font-weight: 500; color: #111; margin-bottom: 20px; text-align: center; }
+    .login-field { margin-bottom: 14px; }
+    .login-field label { display: block; font-size: 11px; color: #666; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .login-field input { width: 100%; background: #f5f5f5; border: 0.5px solid #e0e0e0; border-radius: 6px; padding: 10px 12px; color: #111; font-size: 13px; font-family: inherit; }
+    .login-field input:focus { outline: none; border-color: #f59e0b; }
+    .login-btn { width: 100%; background: #f59e0b; color: #000; border: none; border-radius: 6px; padding: 11px 0; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .login-error { font-size: 12px; color: #991b1b; text-align: center; margin-top: 10px; display: none; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">SUPPLY<em>GRID</em> <span class="nav-tag">Admin</span></div>
+</nav>
+
+<div id="loginWall" class="login-wall">
+  <div class="login-card">
+    <div class="login-title">Admin access</div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="adminPassword" placeholder="Admin password" onkeydown="if(event.key==='Enter') adminLogin()" />
+    </div>
+    <button class="login-btn" onclick="adminLogin()">Sign in →</button>
+    <div class="login-error" id="loginError">Incorrect password.</div>
+  </div>
+</div>
+
+<div class="main" id="adminContent" style="display:none">
+  <div class="page-title">Admin panel</div>
+  <div class="page-sub">Review verification requests, manage suppliers, and monitor platform activity.</div>
+
+  <div class="stats-row">
+    <div class="stat-card"><div class="stat-num" id="statPending">—</div><div class="stat-label">Pending reviews</div></div>
+    <div class="stat-card"><div class="stat-num" id="statSuppliers">—</div><div class="stat-label">Total suppliers</div></div>
+    <div class="stat-card"><div class="stat-num" id="statWantBuy">—</div><div class="stat-label">Active want to buy</div></div>
+    <div class="stat-card"><div class="stat-num" id="statRFQs">—</div><div class="stat-label">Total RFQs sent</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('verifications', this)">Verifications</button>
+    <button class="tab" onclick="switchTab('suppliers', this)">Suppliers</button>
+    <button class="tab" onclick="switchTab('wantbuy', this)">Want to buy</button>
+    <button class="tab" onclick="switchTab('rfqs', this)">RFQs</button>
+  </div>
+
+  <!-- VERIFICATIONS -->
+  <div class="panel active" id="panel-verifications">
+    <div class="section">
+      <div class="section-title">Pending verification requests</div>
+      <div id="pendingList"><div class="empty">Loading...</div></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Previously reviewed</div>
+      <div id="reviewedList"><div class="empty">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- SUPPLIERS -->
+  <div class="panel" id="panel-suppliers">
+    <div class="section">
+      <div class="section-title">All suppliers</div>
+      <div id="suppliersList"><div class="empty">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- WANT TO BUY -->
+  <div class="panel" id="panel-wantbuy">
+    <div class="section">
+      <div class="section-title">Active want to buy alerts</div>
+      <div id="wantBuyList"><div class="empty">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- RFQS -->
+  <div class="panel" id="panel-rfqs">
+    <div class="section">
+      <div class="section-title">Recent RFQs</div>
+      <div id="rfqsList"><div class="empty">Loading...</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const { createClient } = supabase
+  const SUPABASE_URL = 'https://zcqfwkbgrevaixqjytzc.supabase.co'
+  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjcWZ3a2JncmV2YWl4cWp5dHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDkzMDUsImV4cCI6MjA5NTEyNTMwNX0.euaNHnoN0KoG23IRCBcK2x2K-OgB4opFF9dZRsoFAds'
+  const client = createClient(SUPABASE_URL, ANON_KEY)
+
+  let adminPassword = ''
+
+  async function adminLogin() {
+    const pw = document.getElementById('adminPassword').value
+    const error = document.getElementById('loginError')
+
+    // Test password against admin-approve function
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
+      body: JSON.stringify({ admin_password: pw, request_id: 'test', action: 'ping' })
+    })
+    const data = await res.json()
+
+    if (data.error === 'Unauthorized') {
+      error.style.display = 'block'
+      return
+    }
+
+    adminPassword = pw
+    document.getElementById('loginWall').style.display = 'none'
+    document.getElementById('adminContent').style.display = 'block'
+    loadAll()
+  }
+
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+    btn.classList.add('active')
+    document.getElementById('panel-' + name).classList.add('active')
+  }
+
+  async function loadAll() {
+    loadVerifications()
+    loadSuppliers()
+    loadWantBuy()
+    loadRFQs()
+  }
+
+  async function loadVerifications() {
+    const { data: requests } = await client
+      .from('verification_requests')
+      .select('*, suppliers(email, company_name)')
+      .order('submitted_at', { ascending: false })
+
+    if (!requests) return
+
+    const pending = requests.filter(r => r.status === 'pending')
+    const reviewed = requests.filter(r => r.status !== 'pending')
+
+    document.getElementById('statPending').textContent = pending.length
+
+    document.getElementById('pendingList').innerHTML = pending.length
+      ? pending.map(r => renderRequest(r, true)).join('')
+      : '<div class="empty">No pending requests.</div>'
+
+    document.getElementById('reviewedList').innerHTML = reviewed.length
+      ? reviewed.map(r => renderRequest(r, false)).join('')
+      : '<div class="empty">No reviewed requests yet.</div>'
+  }
+
+  function renderRequest(r, showActions) {
+    const certs = r.certifications || []
+    return `
+      <div class="request-card">
+        <div class="request-head">
+          <div>
+            <div class="request-name">${r.business_name}</div>
+            <div class="request-email">${r.suppliers?.email || '—'}</div>
+          </div>
+          <span class="status-badge status-${r.status}">${r.status}</span>
+        </div>
+        <div class="request-grid">
+          <div class="req-field"><div class="req-label">Years in business</div><div class="req-val">${r.years_in_business || '—'}</div></div>
+          <div class="req-field"><div class="req-label">Tax ID</div><div class="req-val">${r.tax_id || '—'}</div></div>
+          <div class="req-field"><div class="req-label">Submitted</div><div class="req-val">${new Date(r.submitted_at).toLocaleDateString()}</div></div>
+          <div class="req-field"><div class="req-label">Address</div><div class="req-val">${r.address || '—'}</div></div>
+          <div class="req-field"><div class="req-label">Trade ref 1</div><div class="req-val">${r.trade_ref_1_company || '—'} · ${r.trade_ref_1_email || '—'}</div></div>
+          <div class="req-field"><div class="req-label">Trade ref 2</div><div class="req-val">${r.trade_ref_2_company || '—'} · ${r.trade_ref_2_email || '—'}</div></div>
+        </div>
+        ${certs.length ? `<div class="certs-list">${certs.map(c => `<span class="cert-tag">${c}</span>`).join('')}</div>` : ''}
+        ${r.admin_notes ? `<div style="font-size:12px;color:#888;padding:8px;background:#0a0a0a;border-radius:4px;margin-bottom:12px">Note: ${r.admin_notes}</div>` : ''}
+        ${showActions ? `
+          <div class="approve-section">
+            ${certs.length ? `
+              <div style="font-size:11px;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.3px">Certifications to approve</div>
+              <div class="approve-grid">
+                ${certs.map(c => `
+                  <div class="cert-approve-item">
+                    <input type="checkbox" id="cert-${r.id}-${c.replace(/\s/g,'-')}" checked />
+                    <label for="cert-${r.id}-${c.replace(/\s/g,'-')}">${c}</label>
+                    <input type="date" style="background:#0a0a0a;border:0.5px solid #2a2a2a;border-radius:4px;color:#888;font-size:11px;padding:2px 6px;margin-left:4px" id="exp-${r.id}-${c.replace(/\s/g,'-')}" placeholder="Expiry" />
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+            <textarea class="notes-input" id="notes-${r.id}" placeholder="Optional admin notes to include in approval or rejection email..."></textarea>
+            <div class="action-row">
+              <button class="approve-btn" onclick="handleAction('${r.id}', '${r.supplier_id}', 'approve', ${JSON.stringify(certs)})">Approve</button>
+              <button class="reject-btn" onclick="handleAction('${r.id}', '${r.supplier_id}', 'reject', [])">Reject</button>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `
+  }
+
+  async function handleAction(requestId, supplierId, action, certs) {
+    const notes = document.getElementById(`notes-${requestId}`)?.value || ''
+    const certsToApprove = certs.map(c => ({
+      name: c,
+      expiry: document.getElementById(`exp-${requestId}-${c.replace(/\s/g,'-')}`)?.value || null
+    })).filter(c => {
+      const cb = document.getElementById(`cert-${requestId}-${c.name.replace(/\s/g,'-')}`)
+      return cb ? cb.checked : true
+    })
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
+      body: JSON.stringify({
+        admin_password: adminPassword,
+        request_id: requestId,
+        action,
+        admin_notes: notes,
+        certifications: certsToApprove
+      })
+    })
+    const data = await res.json()
+    if (data.success) {
+      loadVerifications()
+      loadSuppliers()
+    } else {
+      alert('Error: ' + data.error)
+    }
+  }
+
+  async function loadSuppliers() {
+    const { data: suppliers, count } = await client
+      .from('suppliers')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+
+    document.getElementById('statSuppliers').textContent = count || 0
+
+    if (!suppliers || !suppliers.length) {
+      document.getElementById('suppliersList').innerHTML = '<div class="empty">No suppliers yet.</div>'
+      return
+    }
+
+    const rows = suppliers.map(s => `
+      <tr>
+        <td>${s.company_name}</td>
+        <td style="font-size:12px;color:#888">${s.email}</td>
+        <td>${s.region || '—'}</td>
+        <td><span class="tier-badge tier-${s.verification_tier || 0}">${['Registered','—','Verified Business','Certified Supplier'][s.verification_tier || 0]}</span></td>
+        <td style="font-size:12px;color:#888">${s.membership_tier || 'free'}</td>
+        <td style="font-size:11px;color:#555">${new Date(s.created_at).toLocaleDateString()}</td>
+      </tr>
+    `).join('')
+
+    document.getElementById('suppliersList').innerHTML = `
+      <table>
+        <thead><tr><th>Company</th><th>Email</th><th>Region</th><th>Tier</th><th>Membership</th><th>Joined</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
+  }
+
+  async function loadWantBuy() {
+    const { data: wants, count } = await client
+      .from('want_to_buy')
+      .select('*', { count: 'exact' })
+      .eq('fulfilled', false)
+      .order('created_at', { ascending: false })
+
+    document.getElementById('statWantBuy').textContent = count || 0
+
+    if (!wants || !wants.length) {
+      document.getElementById('wantBuyList').innerHTML = '<div class="empty">No active want to buy alerts.</div>'
+      return
+    }
+
+    const rows = wants.map(w => `
+      <tr>
+        <td class="mono">${w.part_number}</td>
+        <td style="font-size:12px;color:#888">${w.buyer_email}</td>
+        <td style="font-family:monospace;font-size:12px">${w.quantity_needed ? w.quantity_needed.toLocaleString() : '—'}</td>
+        <td style="font-size:11px;color:#555">${new Date(w.created_at).toLocaleDateString()}</td>
+      </tr>
+    `).join('')
+
+    document.getElementById('wantBuyList').innerHTML = `
+      <table>
+        <thead><tr><th>Part number</th><th>Buyer</th><th>Qty needed</th><th>Date</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
+  }
+
+  async function loadRFQs() {
+    const { data: rfqs, count } = await client
+      .from('rfqs')
+      .select('*, suppliers(company_name)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    document.getElementById('statRFQs').textContent = count || 0
+
+    if (!rfqs || !rfqs.length) {
+      document.getElementById('rfqsList').innerHTML = '<div class="empty">No RFQs yet.</div>'
+      return
+    }
+
+    const rows = rfqs.map(r => `
+      <tr>
+        <td class="mono">${r.part_number}</td>
+        <td style="font-size:12px;color:#888">${r.buyer_email}</td>
+        <td>${r.suppliers?.company_name || '—'}</td>
+        <td style="font-family:monospace;font-size:12px">${r.quantity_needed ? r.quantity_needed.toLocaleString() : '—'}</td>
+        <td style="font-size:11px;color:#555">${new Date(r.created_at).toLocaleDateString()}</td>
+      </tr>
+    `).join('')
+
+    document.getElementById('rfqsList').innerHTML = `
+      <table>
+        <thead><tr><th>Part number</th><th>Buyer</th><th>Supplier</th><th>Qty</th><th>Date</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`
+  }
+</script>
+</body>
+</html>
