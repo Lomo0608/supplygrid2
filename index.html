@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupplyGrid — Electronic Component Marketplace</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #111; min-height: 100vh; }
+    a { text-decoration: none; color: inherit; }
+
+    nav { background: #111; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 48px; position: sticky; top: 0; z-index: 100; }
+    .nav-logo { font-size: 20px; font-weight: 600; color: #fff; letter-spacing: 1px; }
+    .nav-logo em { font-style: normal; color: #f59e0b; }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a { font-size: 13px; color: #999; transition: color 0.15s; }
+    .nav-links a:hover { color: #fff; }
+    .nav-btn { font-size: 12px; padding: 7px 18px; border-radius: 4px; border: 0.5px solid #333; background: transparent; color: #e8e8e8; cursor: pointer; font-family: inherit; }
+    .nav-btn.primary { background: #f59e0b; color: #000; border-color: #f59e0b; font-weight: 600; }
+    .nav-btn.primary:hover { background: #d97706; }
+    #navAuthArea { display: flex; align-items: center; gap: 10px; }
+
+    .hero { background: #111; padding: 80px 48px 72px; text-align: center; }
+    .hero h1 { font-size: 42px; font-weight: 500; color: #fff; letter-spacing: -1px; margin-bottom: 16px; line-height: 1.15; max-width: 700px; margin-left: auto; margin-right: auto; }
+    .hero h1 em { font-style: normal; color: #f59e0b; }
+    .hero-sub { font-size: 15px; color: #999; margin-bottom: 40px; line-height: 1.7; max-width: 500px; margin-left: auto; margin-right: auto; }
+
+    .search-section { background: #1a1a1a; padding: 24px 48px; border-bottom: 0.5px solid #2a2a2a; }
+    .search-label { text-align: center; font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; font-weight: 500; }
+    .search-box { max-width: 660px; margin: 0 auto; display: flex; background: #fff; border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 1px rgba(245,158,11,0.3); }
+    .search-box input { flex: 1; background: transparent; border: none; padding: 14px 18px; color: #111; font-size: 14px; font-family: 'Courier New', monospace; outline: none; }
+    .search-box input::placeholder { color: #aaa; }
+    .search-box button { background: #f59e0b; color: #000; border: none; padding: 0 28px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; letter-spacing: 0.3px; }
+    .search-box button:hover { background: #d97706; }
+
+    .paths { padding: 72px 48px; max-width: 1060px; margin: 0 auto; }
+    .paths-title { text-align: center; font-size: 13px; color: #aaa; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 32px; font-weight: 500; }
+    .paths-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .path-card { border: 0.5px solid #e8e8e8; border-radius: 12px; padding: 30px 26px; transition: all 0.15s; }
+    .path-card:hover { border-color: #ccc; box-shadow: 0 4px 20px rgba(0,0,0,0.07); transform: translateY(-1px); }
+    .path-card.featured { border-color: #f59e0b; background: linear-gradient(135deg, #fffbeb 0%, #fff 100%); }
+    .path-card.featured:hover { box-shadow: 0 4px 20px rgba(245,158,11,0.15); }
+    .path-icon { font-size: 26px; margin-bottom: 16px; }
+    .path-title { font-size: 16px; font-weight: 600; color: #111; margin-bottom: 10px; }
+    .path-desc { font-size: 13px; color: #777; line-height: 1.75; margin-bottom: 22px; }
+    .path-cta { font-size: 13px; font-weight: 600; color: #f59e0b; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+    .path-cta:hover { color: #d97706; }
+
+    .live-section { background: #fafafa; border-top: 0.5px solid #efefef; border-bottom: 0.5px solid #efefef; padding: 48px; }
+    .live-inner { max-width: 1060px; margin: 0 auto; }
+    .live-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .live-title { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.6px; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .live-card { background: #fff; border: 0.5px solid #e8e8e8; border-radius: 10px; overflow: hidden; }
+    .live-card-head { padding: 12px 16px; border-bottom: 0.5px solid #f0f0f0; background: #fafafa; }
+    .live-card-title { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+    .live-table { width: 100%; border-collapse: collapse; }
+    .live-table td { padding: 9px 16px; border-bottom: 0.5px solid #f5f5f5; font-size: 12px; }
+    .live-table tr:last-child td { border-bottom: none; }
+    .live-table tr { cursor: pointer; }
+    .live-table tr:hover td { background: #fafafa; }
+    .live-pn { font-family: monospace; font-size: 12px; color: #111; font-weight: 600; }
+    .live-meta { font-size: 11px; color: #bbb; }
+    .live-badge-s { font-size: 9px; padding: 2px 6px; border-radius: 3px; background: #dcfce7; color: #166534; font-weight: 700; letter-spacing: 0.3px; }
+    .live-badge-b { font-size: 9px; padding: 2px 6px; border-radius: 3px; background: #fff7ed; color: #9a3412; font-weight: 700; letter-spacing: 0.3px; }
+    .live-qty { font-family: monospace; font-size: 11px; color: #bbb; text-align: right; }
+    .live-anon { font-size: 11px; color: #bbb; }
+    .live-empty { padding: 24px 16px; text-align: center; font-size: 12px; color: #ccc; }
+
+    .trust { background: #111; padding: 0 48px; }
+    .trust-inner { max-width: 1060px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-left: 0.5px solid #1e1e1e; }
+    .trust-item { padding: 28px 24px; border-right: 0.5px solid #1e1e1e; border-bottom: 0.5px solid #1e1e1e; display: flex; align-items: flex-start; gap: 14px; }
+    .trust-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+    .trust-text-title { font-size: 13px; font-weight: 600; color: #e8e8e8; margin-bottom: 4px; }
+    .trust-text-desc { font-size: 12px; color: #666; line-height: 1.5; }
+
+    footer { background: #111; border-top: 0.5px solid #1e1e1e; padding: 24px 48px; display: flex; justify-content: space-between; align-items: center; }
+    .footer-logo { font-size: 18px; font-weight: 600; color: #fff; letter-spacing: 1px; }
+    .footer-logo em { font-style: normal; color: #f59e0b; }
+    footer span { font-size: 12px; color: #555; }
+
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
+      .nav-links a { display: none; }
+      .hero { padding: 48px 20px 40px; }
+      .hero h1 { font-size: 28px; }
+      .search-section { padding: 20px; }
+      .paths { padding: 40px 20px; }
+      .paths-grid { grid-template-columns: 1fr; }
+      .live-section { padding: 32px 20px; }
+      .trust-inner { grid-template-columns: 1fr; }
+      footer { padding: 20px; flex-direction: column; gap: 10px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">SUPPLY<em>GRID</em></div>
+  <div class="nav-links">
+    <a href="index.html">Search</a>
+    <a href="dashboard.html">List inventory</a>
+    <a href="#how-it-works">How it works</a>
+    <div id="navAuthArea">
+      <button class="nav-btn" onclick="window.location.href='signup.html'">Sign in</button>
+      <button class="nav-btn primary" onclick="window.location.href='signup.html'">Get started free</button>
+    </div>
+  </div>
+</nav>
+
+<div class="hero">
+  <h1>The only component marketplace where OEMs can sell excess <em>without anyone knowing.</em></h1>
+  <p class="hero-sub">Buyers find verified inventory. Suppliers get direct RFQs. OEMs liquidate excess anonymously, no commission fees.</p>
+</div>
+
+<div class="search-section">
+  <div class="search-label">Search. Request. Done.</div>
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Search part number" onkeydown="if(event.key==='Enter') doSearch()" />
+    <button onclick="doSearch()">Search →</button>
+  </div>
+</div>
+
+<div class="paths" id="how-it-works">
+  <div class="paths-title">Who SupplyGrid is for</div>
+  <div class="paths-grid">
+    <div class="path-card">
+      <div class="path-icon">🔍</div>
+      <div class="path-title">Search. Request. Done.</div>
+      <div class="path-desc">Every listing tells you whether a supplier physically has the part or is brokering it. Verified ratings show who actually quotes, delivers, and handles issues. Send an RFQ directly. No platform fee.</div>
+      <div class="path-cta" onclick="document.getElementById('searchInput').focus()">Start searching →</div>
+    </div>
+    <div class="path-card">
+      <div class="path-icon">📦</div>
+      <div class="path-title">List once. Get found by buyers searching right now.</div>
+      <div class="path-desc">Upload your entire inventory in one file. Buyers contact you directly. Paid members see real-time demand intelligence showing which parts buyers are actively searching with no supply listed.</div>
+      <div class="path-cta" onclick="window.location.href='dashboard.html'">List your inventory →</div>
+    </div>
+    <div class="path-card featured">
+      <div class="path-icon">🔒</div>
+      <div class="path-title">Liquidate excess. Nobody needs to know.</div>
+      <div class="path-desc">List your surplus inventory anonymously. Buyers contact SupplyGrid, we forward their interest without revealing your identity. No commission fees. No broker markups. Your customers never find out.</div>
+      <div class="path-cta" onclick="window.location.href='signup.html'">Sell anonymously →</div>
+    </div>
+  </div>
+</div>
+
+<div class="live-section">
+  <div class="live-inner">
+    <div class="live-header">
+      <div class="live-title"><span class="live-dot"></span> Recently listed inventory</div>
+      <span style="font-size:11px;color:#bbb" id="lastUpdated"></span>
+    </div>
+    <div class="live-card">
+      <div class="live-card-head"><div class="live-card-title">Live listings</div></div>
+      <table class="live-table" id="recentListings">
+        <tr><td colspan="4"><div class="live-empty">Loading...</div></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="trust">
+  <div class="trust-inner">
+    <div class="trust-item">
+      <div class="trust-icon">🛡</div>
+      <div><div class="trust-text-title">Verified Business badges</div><div class="trust-text-desc">Business license, address, and trade references verified before the badge appears.</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="trust-icon">★</div>
+      <div><div class="trust-text-title">Certified Supplier status</div><div class="trust-text-desc">ISO 9001, AS9120, AS6081, AS6171, IDEA-STD-1010 certifications on file and verified.</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="trust-icon">⭐</div>
+      <div><div class="trust-text-title">5-criteria supplier ratings</div><div class="trust-text-desc">Responsiveness, quoting, listing accuracy, delivery quality, and return handling. All rated independently.</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="trust-icon">🔒</div>
+      <div><div class="trust-text-title">Anonymous excess selling</div><div class="trust-text-desc">OEMs list surplus without revealing their identity. Buyers contact SupplyGrid, not the seller directly.</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="trust-icon">◎</div>
+      <div><div class="trust-text-title">AI demand intelligence</div><div class="trust-text-desc">Paid suppliers see which parts buyers are actively searching with no supply currently listed.</div></div>
+    </div>
+    <div class="trust-item">
+      <div class="trust-icon">$0</div>
+      <div><div class="trust-text-title">Zero commission fees</div><div class="trust-text-desc">SupplyGrid never takes a cut of your deals. Buyers and sellers connect directly.</div></div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-logo">SUPPLY<em>GRID</em></div>
+  <span>Real inventory · Real suppliers · No middlemen</span>
+</footer>
+
+<script>
+  const { createClient } = supabase
+  const SUPABASE_URL = 'https://zcqfwkbgrevaixqjytzc.supabase.co'
+  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjcWZ3a2JncmV2YWl4cWp5dHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDkzMDUsImV4cCI6MjA5NTEyNTMwNX0.euaNHnoN0KoG23IRCBcK2x2K-OgB4opFF9dZRsoFAds'
+  const client = createClient(SUPABASE_URL, ANON_KEY)
+
+  async function initNav() {
+    const { data: { session } } = await client.auth.getSession()
+    if (session) {
+      document.getElementById('navAuthArea').innerHTML = `
+        <span style="font-size:12px;color:#999">${session.user.email}</span>
+        <button class="nav-btn" onclick="window.location.href='dashboard.html'">Dashboard</button>
+        <button class="nav-btn" onclick="signout()">Sign out</button>
+      `
+    }
+  }
+
+  async function signout() { await client.auth.signOut(); window.location.reload() }
+
+  function doSearch() {
+    const q = document.getElementById('searchInput').value.trim()
+    if (!q) return
+    window.location.href = `results.html?q=${encodeURIComponent(q)}`
+  }
+
+  async function loadLiveActivity() {
+    try {
+      const { data: listings } = await client
+        .from('listings')
+        .select('part_number_listed, inventory_type, quantity, suppliers(region, country, anonymous_seller)')
+        .eq('active', true)
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (listings && listings.length) {
+        const flags = { US:'🇺🇸',KR:'🇰🇷',DE:'🇩🇪',SG:'🇸🇬',GB:'🇬🇧',JP:'🇯🇵',CN:'🇨🇳',TW:'🇹🇼',IN:'🇮🇳',FR:'🇫🇷',CA:'🇨🇦' }
+        document.getElementById('recentListings').innerHTML = listings.map(l => `
+          <tr onclick="window.location.href='results.html?q=${encodeURIComponent(l.part_number_listed)}'">
+            <td><div class="live-pn">${l.part_number_listed}</div></td>
+            <td><span class="live-badge-${l.inventory_type === 'stocked' ? 's' : 'b'}">${l.inventory_type === 'stocked' ? 'WTS' : 'BRK'}</span></td>
+            <td><div class="live-meta">${l.suppliers?.anonymous_seller ? '🔒 Anonymous' : (flags[l.suppliers?.country] || '🌐') + ' ' + (l.suppliers?.region || '—')}</div></td>
+            <td class="live-qty">${l.quantity ? l.quantity.toLocaleString() + ' units' : '—'}</td>
+          </tr>`).join('')
+      } else {
+        document.getElementById('recentListings').innerHTML = '<tr><td colspan="4"><div class="live-empty">No listings yet — be the first to list your inventory</div></td></tr>'
+      }
+      document.getElementById('lastUpdated').textContent = `Updated ${new Date().toLocaleTimeString()}`
+    } catch(e) { console.error('Live feed error', e) }
+  }
+
+  initNav()
+  loadLiveActivity()
+  setInterval(loadLiveActivity, 30000)
+</script>
+</body>
+</html>
