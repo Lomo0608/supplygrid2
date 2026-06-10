@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupplyGrid — Supplier Directory</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --navy: #0a1628; --navy-2: #0d1e38; --blue: #3b82f6; --blue-hover: #2563eb; --blue-light: #60a5fa; --text-muted: #7ba3c8; --text-faint: #4a7aa8; --border-dark: #1a3560; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; background: #f5f7fa; color: var(--navy); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+    a { text-decoration: none; color: inherit; }
+    nav { background: rgba(10,22,40,0.9); backdrop-filter: blur(12px); height: 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; position: sticky; top: 0; z-index: 100; border-bottom: 0.5px solid var(--border-dark); }
+    .nav-logo { font-size: 19px; font-weight: 700; color: #fff; letter-spacing: 0.5px; cursor: pointer; }
+    .nav-logo em { font-style: normal; color: var(--blue); }
+    .nav-btn { font-size: 13px; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-dark); background: transparent; color: #e2e8f0; cursor: pointer; font-family: inherit; font-weight: 500; }
+    .nav-btn:hover { border-color: var(--blue); color: #fff; }
+
+    .hero { background: var(--navy); padding: 44px 40px 40px; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: -160px; left: 40%; width: 600px; height: 380px; background: radial-gradient(ellipse at center, rgba(59,130,246,0.14) 0%, transparent 70%); }
+    .hero-inner { position: relative; z-index: 2; max-width: 1040px; margin: 0 auto; }
+    .hero h1 { font-size: 30px; font-weight: 700; color: #fff; letter-spacing: -0.7px; margin-bottom: 8px; }
+    .hero p { font-size: 15px; color: var(--text-muted); line-height: 1.5; max-width: 560px; }
+
+    .main { max-width: 1040px; margin: 0 auto; padding: 28px 40px 80px; }
+
+    .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 22px; }
+    .search-box { flex: 1; min-width: 220px; background: #fff; border: 1px solid #d8e0ea; border-radius: 9px; padding: 11px 14px; font-size: 14px; font-family: inherit; color: var(--navy); }
+    .search-box:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .filter-select { background: #fff; border: 1px solid #d8e0ea; border-radius: 9px; padding: 11px 13px; font-size: 13px; font-family: inherit; color: var(--navy); }
+    .region-tabs { display: flex; gap: 4px; background: #fff; border: 1px solid #d8e0ea; border-radius: 9px; padding: 4px; }
+    .region-tab { font-size: 13px; padding: 7px 14px; border-radius: 6px; border: none; background: transparent; color: #64748b; cursor: pointer; font-family: inherit; font-weight: 500; }
+    .region-tab.active { background: var(--navy); color: #fff; font-weight: 600; }
+
+    .count-line { font-size: 13px; color: #64748b; margin-bottom: 16px; }
+    .count-line strong { color: var(--navy); }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+    .card { background: #fff; border: 1px solid #e6ebf2; border-radius: 14px; padding: 20px 22px; box-shadow: 0 1px 2px rgba(10,22,40,0.04); cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column; gap: 12px; }
+    .card:hover { border-color: #cbd9e8; box-shadow: 0 8px 24px rgba(10,22,40,0.08); transform: translateY(-2px); }
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .card-name { font-size: 16px; font-weight: 700; color: var(--navy); letter-spacing: -0.2px; line-height: 1.3; }
+    .card-region { font-size: 12px; color: #94a3b8; margin-top: 3px; }
+    .tier2 { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; padding: 3px 8px; border-radius: 4px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; white-space: nowrap; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; flex-shrink: 0; }
+    .tier3 { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; padding: 3px 8px; border-radius: 4px; background: #0a1628; color: #fff; border: 1px solid #0a1628; white-space: nowrap; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; flex-shrink: 0; }
+    .founding-chip { display: inline-flex; align-items: center; font-size: 9px; padding: 3px 8px; border-radius: 4px; background: #fff; color: var(--blue); border: 1px solid #bfdbfe; white-space: nowrap; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
+    .card-stats { display: flex; gap: 18px; border-top: 1px solid #f1f5f9; padding-top: 12px; }
+    .stat { display: flex; flex-direction: column; gap: 1px; }
+    .stat-val { font-size: 15px; font-weight: 700; color: var(--navy); letter-spacing: -0.3px; }
+    .stat-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; }
+    .stars { color: #f59e0b; font-size: 12px; letter-spacing: -0.5px; }
+    .no-rating { font-size: 11px; color: #cbd5e1; }
+    .card-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    .empty { text-align: center; padding: 70px 40px; color: #94a3b8; }
+    .empty h3 { font-size: 17px; color: var(--navy); margin-bottom: 8px; font-weight: 600; }
+    .empty p { font-size: 14px; line-height: 1.6; max-width: 420px; margin: 0 auto 20px; }
+    .empty-cta { background: var(--blue); color: #fff; border: none; border-radius: 9px; padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .loading { text-align: center; padding: 60px; color: #94a3b8; font-size: 14px; }
+
+    @media (max-width: 768px) {
+      nav { padding: 0 16px; }
+      .hero { padding: 30px 16px 26px; }
+      .hero h1 { font-size: 24px; }
+      .main { padding: 20px 16px 60px; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<nav>
+  <div class="nav-logo" onclick="window.location.href='index.html'">SUPPLY<em>GRID</em></div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <button class="nav-btn" onclick="window.location.href='index.html'">Search parts</button>
+    <button class="nav-btn" onclick="window.location.href='signup.html'">List inventory</button>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <h1>Supplier directory</h1>
+    <p>Independent distributors, brokers, and stocking suppliers on SupplyGrid. Verification status and ratings shown for every company.</p>
+  </div>
+</div>
+
+<div class="main">
+  <div class="controls">
+    <input type="text" class="search-box" id="dirSearch" placeholder="Search company name..." oninput="render()" />
+    <div class="region-tabs">
+      <button class="region-tab active" data-region="all" onclick="setRegion('all', this)">All regions</button>
+      <button class="region-tab" data-region="Americas" onclick="setRegion('Americas', this)">Americas</button>
+      <button class="region-tab" data-region="Europe" onclick="setRegion('Europe', this)">Europe</button>
+      <button class="region-tab" data-region="Asia" onclick="setRegion('Asia', this)">Asia</button>
+    </div>
+    <select class="filter-select" id="tierFilter" onchange="render()">
+      <option value="all">All suppliers</option>
+      <option value="2">Verified and above</option>
+      <option value="3">Certified only</option>
+    </select>
+  </div>
+  <div class="count-line" id="countLine"></div>
+  <div id="content"><div class="loading">Loading suppliers...</div></div>
+</div>
+
+<script>
+  const { createClient } = supabase
+  const SUPABASE_URL = 'https://zcqfwkbgrevaixqjytzc.supabase.co'
+  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjcWZ3a2JncmV2YWl4cWp5dHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDkzMDUsImV4cCI6MjA5NTEyNTMwNX0.euaNHnoN0KoG23IRCBcK2x2K-OgB4opFF9dZRsoFAds'
+  const client = createClient(SUPABASE_URL, ANON_KEY)
+
+  let allSuppliers = []
+  let listingCounts = {}
+  let activeRegion = 'all'
+
+  function avgRating(s) {
+    const r = [s.rating_responsiveness, s.rating_quoted, s.rating_accuracy, s.rating_quality, s.rating_returns].filter(x => x > 0)
+    if (!r.length) return 0
+    return Math.round((r.reduce((a, b) => a + Number(b), 0) / r.length) * 10) / 10
+  }
+
+  function stars(avg) {
+    const full = Math.round(avg)
+    return '<span class="stars">' + '\u2605'.repeat(full) + '\u2606'.repeat(5 - full) + '</span>'
+  }
+
+  async function load() {
+    const { data: suppliers, error } = await client.from('suppliers')
+      .select('id, company_name, slug, region, country, verification_tier, founding_supplier, year_established, rating_responsiveness, rating_quoted, rating_accuracy, rating_quality, rating_returns, review_count')
+      .eq('account_type', 'supplier')
+      .eq('anonymous_seller', false)
+      .or('suspended.is.null,suspended.eq.false')
+
+    if (error) {
+      document.getElementById('content').innerHTML = '<div class="empty"><h3>Could not load the directory</h3><p>Please try again in a moment.</p></div>'
+      return
+    }
+
+    allSuppliers = (suppliers || []).filter(s => s.company_name && s.company_name.trim())
+
+    // Listing counts per supplier from active listings
+    const { data: listings } = await client.from('listings').select('supplier_id').eq('active', true)
+    listingCounts = {}
+    ;(listings || []).forEach(l => { listingCounts[l.supplier_id] = (listingCounts[l.supplier_id] || 0) + 1 })
+
+    render()
+  }
+
+  function setRegion(region, btn) {
+    activeRegion = region
+    document.querySelectorAll('.region-tab').forEach(t => t.classList.remove('active'))
+    btn.classList.add('active')
+    render()
+  }
+
+  function render() {
+    const term = (document.getElementById('dirSearch').value || '').toLowerCase().trim()
+    const minTier = document.getElementById('tierFilter').value
+
+    let rows = allSuppliers.filter(s => {
+      if (term && !(s.company_name || '').toLowerCase().includes(term)) return false
+      if (activeRegion !== 'all' && s.region !== activeRegion) return false
+      if (minTier === '2' && (s.verification_tier || 0) < 2) return false
+      if (minTier === '3' && (s.verification_tier || 0) < 3) return false
+      return true
+    })
+
+    // Certified first, then verified, then by inventory depth
+    rows.sort((a, b) => {
+      const tierDiff = (b.verification_tier || 0) - (a.verification_tier || 0)
+      if (tierDiff !== 0) return tierDiff
+      return (listingCounts[b.id] || 0) - (listingCounts[a.id] || 0)
+    })
+
+    const total = allSuppliers.length
+    document.getElementById('countLine').innerHTML = rows.length === total
+      ? '<strong>' + total + '</strong> supplier' + (total !== 1 ? 's' : '') + ' on SupplyGrid'
+      : '<strong>' + rows.length + '</strong> of ' + total + ' suppliers match your filters'
+
+    if (!rows.length) {
+      document.getElementById('content').innerHTML = total === 0
+        ? '<div class="empty"><h3>The directory is just getting started</h3><p>SupplyGrid is in its founding phase. The first 150 suppliers to join get six months free and a permanent founding discount.</p><button class="empty-cta" onclick="window.location.href=\'signup.html\'">Become a founding supplier</button></div>'
+        : '<div class="empty"><h3>No suppliers match your filters</h3><p>Try a different region or clear the search.</p></div>'
+      return
+    }
+
+    document.getElementById('content').innerHTML = '<div class="grid">' + rows.map(s => {
+      const tier = s.verification_tier || 0
+      const lc = listingCounts[s.id] || 0
+      const avg = avgRating(s)
+      const tierBadge = tier === 3 ? '<span class="tier3">\u2713 Certified</span>' : tier === 2 ? '<span class="tier2">\u2713 Verified</span>' : ''
+      const foundingChip = s.founding_supplier ? '<span class="founding-chip">Founding Supplier</span>' : ''
+      const ratingHtml = avg > 0
+        ? stars(avg) + ' <span style="font-size:11px;color:#94a3b8">' + avg + ' (' + (s.review_count || 0) + ')</span>'
+        : '<span class="no-rating">Not yet rated</span>'
+      return '<div class="card" onclick="window.location.href=\'supplier.html?id=' + (s.slug || s.id) + '\'">' +
+        '<div class="card-head">' +
+          '<div><div class="card-name">' + s.company_name + '</div>' +
+          '<div class="card-region">' + (s.region || '\u2014') + (s.country ? ' \u00b7 ' + s.country : '') + (s.year_established ? ' \u00b7 Est. ' + s.year_established : '') + '</div></div>' +
+          tierBadge +
+        '</div>' +
+        '<div class="card-badges">' + foundingChip + '</div>' +
+        '<div class="card-stats">' +
+          '<div class="stat"><span class="stat-val">' + lc.toLocaleString() + '</span><span class="stat-label">Active listings</span></div>' +
+          '<div class="stat"><span class="stat-val" style="font-size:12px;padding-top:3px">' + ratingHtml + '</span><span class="stat-label">Buyer rating</span></div>' +
+        '</div>' +
+      '</div>'
+    }).join('') + '</div>'
+  }
+
+  load()
+</script>
+</body>
+</html>
