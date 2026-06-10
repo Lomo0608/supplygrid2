@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupplyGrid — Supplier Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --navy: #0a1628; --navy-2: #0d1e38; --blue: #3b82f6; --blue-hover: #2563eb; --blue-light: #60a5fa; --text-muted: #7ba3c8; --text-faint: #4a7aa8; --border-dark: #1a3560; --bg: #f5f7fa; --card-border: #e6ebf2; --ink: #0a1628; --ink-2: #475569; --ink-3: #94a3b8; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
+    a { text-decoration: none; color: inherit; }
+    button { font-family: inherit; }
+
+    /* ===== APP SHELL ===== */
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 232px; flex-shrink: 0; background: var(--navy); display: flex; flex-direction: column; padding: 20px 12px 16px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .side-logo { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: 0.5px; padding: 4px 12px 22px; cursor: pointer; }
+    .side-logo em { font-style: normal; color: var(--blue); }
+    .side-section { font-size: 10px; font-weight: 700; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.8px; padding: 14px 12px 7px; }
+    .side-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font-size: 13.5px; font-weight: 500; color: var(--text-muted); background: transparent; border: none; border-radius: 8px; padding: 9px 12px; cursor: pointer; transition: all 0.13s; margin-bottom: 1px; }
+    .side-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
+    .side-item.active { color: #fff; background: rgba(59,130,246,0.16); font-weight: 600; }
+    .side-item.active::before { content: ''; width: 3px; height: 16px; border-radius: 2px; background: var(--blue); margin-left: -12px; margin-right: 9px; }
+    .side-footer { margin-top: auto; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.07); }
+    .side-user { padding: 12px 12px 0; }
+    .side-user-email { font-size: 11.5px; color: var(--text-faint); word-break: break-all; margin-bottom: 8px; }
+    .side-signout { font-size: 12px; color: var(--text-muted); background: none; border: 1px solid var(--border-dark); border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+    .side-signout:hover { color: #fff; border-color: var(--blue); }
+
+    .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .topbar { height: 58px; background: #fff; border-bottom: 1px solid var(--card-border); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; position: sticky; top: 0; z-index: 50; }
+    .topbar-title { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; color: var(--ink); }
+    .topbar-actions { display: flex; gap: 8px; align-items: center; }
+    .topbar-link { font-size: 13px; font-weight: 500; color: var(--ink-2); border: 1px solid #dbe2ec; background: #fff; border-radius: 8px; padding: 7px 14px; cursor: pointer; transition: all 0.13s; }
+    .topbar-link:hover { border-color: var(--blue); color: var(--blue); }
+
+    .main { padding: 26px 28px 70px; max-width: 1080px; width: 100%; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ===== CARDS / SECTIONS ===== */
+    .section { background: #fff; border: 1px solid var(--card-border); border-radius: 14px; padding: 24px 26px; box-shadow: 0 1px 2px rgba(10,22,40,0.04); margin-bottom: 16px; }
+    .section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+    .section-title { font-size: 15.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.2px; }
+    .section-sub { font-size: 13px; color: var(--ink-3); margin-top: 3px; line-height: 1.5; }
+
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .stat-card { background: #fff; border: 1px solid var(--card-border); border-radius: 12px; padding: 18px 20px; box-shadow: 0 1px 2px rgba(10,22,40,0.04); }
+    .stat-card-num { font-size: 26px; font-weight: 700; color: var(--ink); line-height: 1; letter-spacing: -1px; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+    .stat-card-label { font-size: 10.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+
+    /* quick actions */
+    .qa-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .qa-card { display: flex; flex-direction: column; gap: 3px; text-align: left; background: #fafbfd; border: 1px solid var(--card-border); border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: all 0.13s; }
+    .qa-card:hover { border-color: var(--blue); background: #f5f9ff; transform: translateY(-1px); }
+    .qa-title { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+    .qa-sub { font-size: 11.5px; color: var(--ink-3); }
+
+    /* ===== ONBOARDING ===== */
+    .onboarding { background: #fff; border: 1px solid var(--card-border); border-radius: 14px; padding: 22px 26px; box-shadow: 0 1px 2px rgba(10,22,40,0.04); }
+    .onboarding-title { font-size: 14.5px; font-weight: 700; color: var(--ink); margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; }
+    .onboarding-sub { font-size: 12.5px; color: var(--ink-3); font-weight: 500; }
+    .check-step { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f3f6fa; }
+    .check-step:last-child { border-bottom: none; }
+    .check-circle { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #d3dce8; display: flex; align-items: center; justify-content: center; font-size: 11px; color: transparent; flex-shrink: 0; }
+    .check-circle.done { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .check-label { font-size: 13.5px; color: var(--ink-2); flex: 1; }
+    .check-step .done + .check-label { color: var(--ink-3); text-decoration: line-through; }
+    .check-action { font-size: 12.5px; color: var(--blue); font-weight: 600; cursor: pointer; background: none; border: none; }
+    .check-action:hover { text-decoration: underline; }
+
+    /* ===== FORMS ===== */
+    .field { margin-bottom: 15px; }
+    .field label { display: block; font-size: 11px; color: var(--ink-2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; }
+    .field input, .field select, .field textarea { width: 100%; background: #fff; border: 1px solid #d8e0ea; border-radius: 9px; padding: 10px 13px; color: var(--ink); font-size: 14px; font-family: inherit; transition: border-color 0.13s, box-shadow 0.13s; }
+    .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .field input[readonly] { background: #f8fafc; color: var(--ink-3); }
+    .field-hint { font-size: 11.5px; color: var(--ink-3); margin-top: 5px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .submit-btn { background: var(--blue); color: #fff; border: none; border-radius: 9px; padding: 11px 22px; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.13s; }
+    .submit-btn:hover { background: var(--blue-hover); transform: translateY(-1px); }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .nav-btn { font-size: 12.5px; padding: 8px 14px; border-radius: 8px; border: 1px solid #dbe2ec; background: #fff; color: var(--ink-2); cursor: pointer; font-weight: 500; transition: all 0.13s; }
+    .nav-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .status { font-size: 13px; padding: 0; border-radius: 8px; margin-top: 12px; }
+    .status.error { display: block; background: #fef2f2; color: #991b1b; padding: 11px 14px; }
+    .status.success { display: block; background: #f0fdf4; color: #166534; padding: 11px 14px; }
+    .status.loading { display: block; background: #eff6ff; color: #1d4ed8; padding: 11px 14px; }
+
+    /* ===== UPLOAD ===== */
+    .upload-zone { border: 1.5px dashed #cfdae7; border-radius: 12px; padding: 38px; text-align: center; cursor: pointer; transition: all 0.15s; background: #fafbfd; }
+    .upload-zone:hover { border-color: var(--blue); background: #f5f9ff; }
+    .upload-icon { font-size: 30px; margin-bottom: 10px; }
+    .upload-title { font-size: 14.5px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+    .upload-sub { font-size: 12.5px; color: var(--ink-3); margin-bottom: 14px; }
+    .upload-btn { background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 9px 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .upload-btn:hover { background: var(--blue-hover); }
+    .template-link { font-size: 12px; color: var(--blue); margin-top: 12px; cursor: pointer; font-weight: 500; }
+    .template-link:hover { text-decoration: underline; }
+    .bulk-preview { margin-top: 18px; }
+    .bulk-preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .bulk-preview-title { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+    .bulk-preview-count { font-size: 12px; color: var(--ink-3); }
+    .bulk-table { max-height: 340px; overflow-y: auto; border: 1px solid var(--card-border); border-radius: 10px; }
+    .bulk-progress { margin-top: 14px; }
+    .progress-bar-wrap { height: 6px; border-radius: 3px; background: #edf1f7; overflow: hidden; margin-bottom: 8px; }
+    .progress-bar { height: 100%; border-radius: 3px; background: var(--blue); transition: width 0.3s; }
+    .progress-text { font-size: 12.5px; color: var(--ink-2); }
+    .row-valid { color: #166534; }
+    .row-error { color: #991b1b; background: #fff8f8; }
+
+    /* ===== PART PREVIEW ===== */
+    .part-preview { background: #fafbfd; border: 1px solid var(--card-border); border-radius: 10px; padding: 16px 18px; margin: 14px 0; }
+    .pp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+    .pp-field { font-size: 13px; color: var(--ink); }
+    .pp-label { font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; display: block; margin-bottom: 2px; }
+    .mono { font-family: 'SF Mono', Menlo, monospace; }
+    .mono-sm { font-family: 'SF Mono', Menlo, monospace; font-size: 12px; }
+
+    /* ===== TABLES ===== */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { font-size: 10px; color: var(--ink-3); font-weight: 700; text-align: left; padding: 10px 12px; background: #f8fafc; border-bottom: 1px solid #eef2f7; text-transform: uppercase; letter-spacing: 0.4px; position: sticky; top: 0; }
+    td { padding: 9px 12px; border-bottom: 1px solid #f3f6fa; color: var(--ink); vertical-align: middle; }
+    tr:hover td { background: #fafcff; }
+    .badge { font-size: 10px; padding: 3px 8px; border-radius: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+    .badge-stocked { background: #f0fdf4; color: #166534; }
+    .badge-brokered { background: #fff7ed; color: #9a3412; }
+    .edit-btn { font-size: 11.5px; color: var(--ink-2); background: #fff; border: 1px solid #dbe2ec; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-weight: 500; transition: all 0.12s; }
+    .edit-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .delete-btn { font-size: 11.5px; color: #b91c1c; background: #fff; border: 1px solid #fecaca; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-weight: 500; transition: all 0.12s; }
+    .delete-btn:hover { background: #fef2f2; }
+    .save-edit-btn { font-size: 12px; background: var(--blue); color: #fff; border: none; border-radius: 7px; padding: 8px 16px; cursor: pointer; font-weight: 600; }
+    .inline-edit { display: flex; gap: 12px; align-items: flex-end; background: #fafbfd; border: 1px solid var(--card-border); border-radius: 9px; padding: 12px 14px; margin: 4px 0 8px; }
+    .inline-edit label { display: block; font-size: 10px; color: var(--ink-3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.3px; font-weight: 600; }
+    .inline-edit input, .inline-edit select { background: #fff; border: 1px solid #d8e0ea; border-radius: 7px; padding: 7px 10px; font-size: 13px; color: var(--ink); font-family: inherit; width: 130px; }
+    .empty-state { text-align: center; padding: 36px 20px; color: var(--ink-3); font-size: 13.5px; line-height: 1.6; }
+
+    /* ===== RFQ ===== */
+    .rfq-card { background: #fff; border: 1px solid var(--card-border); border-radius: 12px; padding: 18px 20px; margin-bottom: 12px; }
+    .rfq-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .rfq-pn { font-family: 'SF Mono', Menlo, monospace; font-size: 14.5px; font-weight: 700; color: var(--ink); }
+    .rfq-date { font-size: 11.5px; color: var(--ink-3); }
+    .rfq-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px 16px; margin-bottom: 12px; }
+    .rfq-field { font-size: 13px; color: var(--ink); }
+    .rfq-reply { font-size: 12.5px; color: var(--blue); font-weight: 600; cursor: pointer; }
+    .analytics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .analytics-card { background: #fafbfd; border: 1px solid var(--card-border); border-radius: 10px; padding: 14px 16px; text-align: center; }
+    .analytics-num { font-size: 20px; font-weight: 700; color: var(--ink); letter-spacing: -0.5px; }
+    .analytics-label { font-size: 10.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; margin-top: 2px; }
+
+    /* ===== BANNERS / BADGES ===== */
+    .verify-banner-text { font-size: 14px; font-weight: 600; color: var(--ink); }
+    .verify-banner-sub { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+    .verify-btn { background: var(--blue); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .verify-btn:hover { background: var(--blue-hover); }
+    .tier-badge-2 { display: inline-flex; align-items: center; gap: 4px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 5px; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #1d4ed8; }
+    .tier-badge-3 { display: inline-flex; align-items: center; gap: 4px; background: #0a1628; border: 1px solid #0a1628; border-radius: 5px; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #fff; }
+
+    /* ===== AUTH WALL ===== */
+    .auth-wall { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px; text-align: center; position: fixed; inset: 0; background: var(--bg); z-index: 200; }
+    .auth-wall h2 { font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: -0.4px; }
+    .auth-wall p { font-size: 14px; color: var(--ink-2); margin-bottom: 10px; }
+    .auth-wall button { background: var(--blue); color: #fff; border: none; border-radius: 9px; padding: 12px 26px; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+    @media (max-width: 920px) {
+      .app { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: static; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 2px; padding: 10px 12px; }
+      .side-logo { padding: 4px 10px; }
+      .side-section { display: none; }
+      .side-item { width: auto; padding: 8px 12px; }
+      .side-item.active::before { display: none; }
+      .side-footer { margin-top: 0; padding-top: 0; border-top: none; display: flex; align-items: center; }
+      .side-user { display: none; }
+      .main { padding: 18px 14px 60px; }
+      .stats-row, .qa-row { grid-template-columns: 1fr 1fr; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .topbar { padding: 0 14px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="side-logo" onclick="window.location.href='index.html'">SUPPLY<em>GRID</em></div>
+    <div class="side-section">Workspace</div>
+    <button class="side-item active" data-panel="overview" onclick="switchTab('overview')">Overview</button>
+    <button class="side-item" data-panel="listings" onclick="switchTab('listings')">My listings</button>
+    <button class="side-item" data-panel="rfqs" onclick="switchTab('rfqs')">RFQ inbox</button>
+    <div class="side-section">Add inventory</div>
+    <button class="side-item" data-panel="bulk" onclick="switchTab('bulk')">Bulk upload</button>
+    <button class="side-item" data-panel="single" onclick="switchTab('single')">Single listing</button>
+    <div class="side-section">Intelligence</div>
+    <button class="side-item" data-panel="demand" onclick="switchTab('demand')">Demand intelligence</button>
+    <div class="side-footer">
+      <button class="side-item" data-panel="settings" onclick="switchTab('settings')">Settings</button>
+      <button class="side-item" onclick="window.location.href='index.html'">Search parts</button>
+      <div class="side-user">
+        <div class="side-user-email" id="navUser"></div>
+        <button class="side-signout" onclick="doSignout()">Sign out</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="content">
+    <header class="topbar">
+      <div class="topbar-title" id="pageTitle">Overview</div>
+      <div class="topbar-actions">
+        <button class="topbar-link" onclick="window.location.href='directory.html'">Supplier directory</button>
+      </div>
+    </header>
+
+    <main class="main" id="mainContent" style="display:none">
+
+      <!-- OVERVIEW -->
+      <div class="panel active" id="panel-overview">
+        <div id="foundingBanner" style="display:none;margin-bottom:16px"></div>
+        <div id="verificationBanner" style="display:none;margin-bottom:16px"></div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-card-num" id="statActive">0</div><div class="stat-card-label">Active listings</div></div>
+          <div class="stat-card"><div class="stat-card-num" id="statStocked">0</div><div class="stat-card-label">Stocked</div></div>
+          <div class="stat-card"><div class="stat-card-num" id="statBrokered">0</div><div class="stat-card-label">Brokered</div></div>
+          <div class="stat-card"><div class="stat-card-num" id="statRFQs">0</div><div class="stat-card-label">RFQs received</div></div>
+        </div>
+        <div id="onboardingChecklist" style="display:none;margin-bottom:16px"></div>
+        <div class="section">
+          <div class="section-head"><div><div class="section-title">Quick actions</div><div class="section-sub">Jump straight to the most common tasks</div></div></div>
+          <div class="qa-row">
+            <button class="qa-card" onclick="switchTab('bulk')"><span class="qa-title">Upload inventory</span><span class="qa-sub">Bulk CSV or Excel</span></button>
+            <button class="qa-card" onclick="switchTab('single')"><span class="qa-title">Add one part</span><span class="qa-sub">Single listing with lookup</span></button>
+            <button class="qa-card" onclick="switchTab('demand')"><span class="qa-title">Demand brief</span><span class="qa-sub">What buyers want now</span></button>
+            <button class="qa-card" onclick="window.location.href='verify.html'"><span class="qa-title">Get verified</span><span class="qa-sub">Build buyer trust</span></button>
+          </div>
+        </div>
+      </div>
+
+  <!-- BULK UPLOAD -->
+  <div class="panel" id="panel-bulk">
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-title">Upload inventory file</div>
+          <div class="section-sub">Excel or CSV · We auto-fill descriptions from Digi-Key</div>
+        </div>
+      </div>
+
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <div class="upload-icon">📂</div>
+        <div class="upload-title">Drop your inventory file here</div>
+        <div class="upload-sub">Excel (.xlsx) or CSV · Required columns: Part Number, Quantity, Type (stocked/brokered)</div>
+        <button class="upload-btn" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">Choose file</button>
+        <br/>
+        <span class="template-link" onclick="event.stopPropagation(); downloadTemplate()">Download template</span>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(this.files[0])" />
+
+      <div class="bulk-preview" id="bulkPreview">
+        <div class="bulk-preview-head">
+          <div class="bulk-preview-title">Preview</div>
+          <div class="bulk-preview-count" id="bulkCount">0 rows</div>
+        </div>
+        <table class="bulk-table">
+          <thead><tr><th>Part number</th><th>Qty</th><th>DC</th><th>Type</th><th>Price</th><th>Status</th></tr></thead>
+          <tbody id="bulkTableBody"></tbody>
+        </table>
+      </div>
+
+      <div class="bulk-progress" id="bulkProgress">
+        <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+        <div class="progress-text" id="progressText">Processing...</div>
+      </div>
+
+      <button class="submit-btn" id="bulkSubmitBtn" onclick="submitBulk()" style="display:none">Upload all listings →</button>
+      <div class="status" id="bulkStatus"></div>
+    </div>
+  </div>
+
+  <!-- PASTE -->
+  <!-- SINGLE -->
+  <div class="panel" id="panel-single">
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">Single listing</div>
+      </div>
+      <div class="field">
+        <label>Part number *</label>
+        <input class="mono" type="text" id="partNumber" placeholder="e.g. TMS320F28335PGFA" oninput="this.value=this.value.toUpperCase(); debounceLookup()" />
+        <div class="field-hint">Enter any part number, including obsolete and end of life parts. We auto-fill the manufacturer if we recognize it, but you can always type it yourself.</div>
+      </div>
+      <div class="field">
+        <label>Manufacturer *</label>
+        <input type="text" id="manufacturer" placeholder="e.g. Texas Instruments" />
+        <div class="field-hint">You know the manufacturer even if we do not have reference data for this part. Required.</div>
+      </div>
+      <div class="part-preview" id="partPreview">
+        <div class="pp-label">✓ Reference data found — manufacturer auto-filled</div>
+        <div class="pp-grid">
+          <div class="pp-field"><label>Category</label><span id="prev-cat">—</span></div>
+          <div class="pp-field"><label>Package</label><span id="prev-pkg">—</span></div>
+          <div class="pp-field"><label>Description</label><span id="prev-desc">—</span></div>
+        </div>
+      </div>
+      <div id="lookupStatus" class="status"></div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Inventory type *</label>
+          <select id="inventoryType">
+            <option value="">Select type</option>
+            <option value="stocked">Stocked</option>
+            <option value="brokered">Brokered</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Quantity *</label>
+          <input type="number" id="quantity" placeholder="e.g. 4500" min="1" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Date code</label>
+        <input type="text" id="dateCode" placeholder="e.g. 2023+" class="mono" />
+      </div>
+      <button class="submit-btn" onclick="submitSingle()">Post listing →</button>
+      <div id="submitStatus" class="status"></div>
+    </div>
+  </div>
+
+  <!-- MY LISTINGS -->
+  <div class="panel" id="panel-listings">
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-title">My listings</div>
+          <div class="section-sub" id="listingsSummary">Loading...</div>
+        </div>
+        <button style="font-size:12px;color:var(--blue);background:none;border:none;cursor:pointer;font-family:inherit;font-weight:600" onclick="loadListings()">Refresh</button>
+      </div>
+      <div id="listingsToolbar" style="display:none">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+          <input type="text" id="listingSearch" placeholder="Search your part numbers..." oninput="renderListings()" style="flex:1;min-width:200px;background:#fff;border:1px solid #d8e0ea;border-radius:8px;padding:9px 13px;font-size:13px;font-family:inherit;color:var(--navy)" />
+          <select id="listingFilterStatus" onchange="renderListings()" style="background:#fff;border:1px solid #d8e0ea;border-radius:8px;padding:9px 11px;font-size:13px;font-family:inherit;color:var(--navy)">
+            <option value="all">All statuses</option>
+            <option value="active">Visible only</option>
+            <option value="hidden">Hidden only</option>
+          </select>
+          <select id="listingFilterType" onchange="renderListings()" style="background:#fff;border:1px solid #d8e0ea;border-radius:8px;padding:9px 11px;font-size:13px;font-family:inherit;color:var(--navy)">
+            <option value="all">All types</option>
+            <option value="stocked">Stocked</option>
+            <option value="brokered">Brokered</option>
+          </select>
+        </div>
+        <div id="bulkActionBar" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;margin-bottom:12px">
+          <span style="font-size:13px;color:#1d4ed8;font-weight:600" id="selCount">0 selected</span>
+          <button class="edit-btn" onclick="bulkSetActive(false)">Hide selected</button>
+          <button class="edit-btn" onclick="bulkSetActive(true)">Show selected</button>
+          <button class="delete-btn" onclick="bulkDelete()">Delete selected</button>
+        </div>
+      </div>
+      <div id="listingsTable"><div class="empty-state">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- RFQ INBOX -->
+  <div class="panel" id="panel-rfqs">
+    <div class="section">
+      <div class="section-head">
+        <div>
+          <div class="section-title">RFQ inbox</div>
+          <div class="section-sub">Buyer requests sent to you through SupplyGrid</div>
+        </div>
+        <button style="font-size:12px;color:#22c55e;background:none;border:none;cursor:pointer;font-family:inherit" onclick="loadRFQs()">Refresh</button>
+      </div>
+      <div id="rfqAnalytics" style="display:none;margin-bottom:16px"></div>
+      <div id="rfqInbox"><div class="empty-state">Loading...</div></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-demand">
+    <div id="demandContent"><div class="empty-state">Loading...</div></div>
+  </div>
+
+  <div class="panel" id="panel-settings">
+    <div class="section" style="max-width:640px">
+      <div class="section-head" style="margin-bottom:20px">
+        <div>
+          <div class="section-title">Account settings</div>
+          <div class="section-sub">Update your profile information and account preferences</div>
+        </div>
+      </div>
+      <div id="settingsContent"><div class="empty-state">Loading...</div></div>
+    </div>
+  </div>
+    </main>
+  </div>
+</div>
+
+<div class="auth-wall" id="authWall" style="display:none">
+  <h2>Sign in to manage inventory</h2>
+  <p>Create a supplier account to list your inventory on SupplyGrid.</p>
+  <button onclick="window.location.href='signup.html'">Sign in →</button>
+</div>
+
+<script>
+  const { createClient } = supabase
+  const SUPABASE_URL = 'https://zcqfwkbgrevaixqjytzc.supabase.co'
+  const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjcWZ3a2JncmV2YWl4cWp5dHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NDkzMDUsImV4cCI6MjA5NTEyNTMwNX0.euaNHnoN0KoG23IRCBcK2x2K-OgB4opFF9dZRsoFAds'
+  const client = createClient(SUPABASE_URL, ANON_KEY)
+
+  let currentUser = null
+  let partVerified = false
+  let bulkRows = []
+
+  async function init() {
+    const { data: { session } } = await client.auth.getSession()
+    if (!session) { document.getElementById('authWall').style.display = 'flex'; return }
+    currentUser = session.user
+    document.getElementById('navUser').textContent = currentUser.email
+    document.getElementById('mainContent').style.display = 'block'
+    loadFoundingBanner()
+    loadVerificationBanner()
+    loadListings()
+    loadRFQCount()
+  }
+
+  // Shared premium-access check: paid OR within founding window
+  function hasPremiumAccess(supplier) {
+    if (!supplier) return false
+    if (supplier.membership_tier === 'paid') return true
+    if (supplier.founding_supplier && supplier.founding_joined_at) {
+      const sixMonths = 182 * 24 * 60 * 60 * 1000
+      return new Date(supplier.founding_joined_at).getTime() + sixMonths > Date.now()
+    }
+    return false
+  }
+
+  async function loadFoundingBanner() {
+    const { data: s } = await client.from('suppliers')
+      .select('founding_supplier, founding_joined_at, membership_tier')
+      .eq('id', currentUser.id).maybeSingle()
+    if (!s?.founding_supplier || !s.founding_joined_at) return
+    if (s.membership_tier === 'paid') return
+
+    const joined = new Date(s.founding_joined_at)
+    const freeUntil = new Date(joined.getTime() + 182 * 24 * 60 * 60 * 1000)
+    const daysLeft = Math.max(0, Math.ceil((freeUntil - Date.now()) / (24 * 60 * 60 * 1000)))
+    const banner = document.getElementById('foundingBanner')
+    banner.style.display = 'block'
+    banner.innerHTML =
+      '<div style="background:linear-gradient(135deg,#0d1e38,#0a1628);border:1px solid #1a3560;border-radius:14px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:16px">' +
+        '<div>' +
+          '<div style="font-size:14px;font-weight:700;color:#60a5fa;margin-bottom:3px">Founding Supplier</div>' +
+          '<div style="font-size:13px;color:#7ba3c8">All features free until ' + freeUntil.toLocaleDateString() + ' · ' + daysLeft + ' days left. You keep a permanent founding discount when paid plans launch.</div>' +
+        '</div>' +
+      '</div>'
+  }
+
+  async function loadRFQCount() {
+    const { count } = await client
+      .from('rfqs')
+      .select('*', { count: 'exact', head: true })
+      .eq('supplier_id', currentUser.id)
+    document.getElementById('statRFQs').textContent = count || 0
+  }
+
+  async function loadOnboardingChecklist(listingCount, verificationTier) {
+    const { data: supplier } = await client
+      .from('suppliers')
+      .select('company_name, phone, country')
+      .eq('id', currentUser.id)
+      .maybeSingle()
+
+    const profileComplete = supplier?.company_name && supplier?.country
+    const hasListings = listingCount > 0
+    const verificationSubmitted = verificationTier > 0
+
+    if (profileComplete && hasListings && verificationSubmitted) {
+      document.getElementById('onboardingChecklist').style.display = 'none'
+      return
+    }
+
+    document.getElementById('onboardingChecklist').style.display = 'block'
+    document.getElementById('onboardingChecklist').innerHTML = `
+      <div class="onboarding">
+        <div class="onboarding-title">
+          Getting started
+          <span class="onboarding-sub">${[true, profileComplete, hasListings, verificationSubmitted].filter(Boolean).length} of 4 complete</span>
+        </div>
+        <div class="checklist">
+          <div class="check-step done">
+            <div class="check-circle">✓</div>
+            <div class="check-label">Account created</div>
+          </div>
+          <div class="check-step ${profileComplete ? 'done' : 'active'}">
+            <div class="check-circle">${profileComplete ? '✓' : '2'}</div>
+            <div class="check-label">Profile complete</div>
+            ${!profileComplete ? '<div class="check-action" onclick="window.location.href=\'verify.html\'">Complete →</div>' : ''}
+          </div>
+          <div class="check-step ${hasListings ? 'done' : profileComplete ? 'active' : ''}">
+            <div class="check-circle">${hasListings ? '✓' : '3'}</div>
+            <div class="check-label">First listing posted</div>
+            ${!hasListings ? '<div class="check-action" onclick="switchTabDirect(\'bulk\')">Upload →</div>' : ''}
+          </div>
+          <div class="check-step ${verificationSubmitted ? 'done' : hasListings ? 'active' : ''}">
+            <div class="check-circle">${verificationSubmitted ? '✓' : '4'}</div>
+            <div class="check-label">Verification submitted</div>
+            ${!verificationSubmitted ? '<div class="check-action" onclick="window.location.href=\'verify.html\'">Apply →</div>' : ''}
+          </div>
+        </div>
+      </div>
+    `
+  }
+
+  function switchTabDirect(name) { switchTab(name) }
+
+  async function loadRFQs() {
+    const { data: rfqs, error } = await client
+      .from('rfqs')
+      .select('*')
+      .eq('supplier_id', currentUser.id)
+      .order('created_at', { ascending: false })
+
+    const inbox = document.getElementById('rfqInbox')
+    const analytics = document.getElementById('rfqAnalytics')
+
+    if (!rfqs || !rfqs.length) {
+      inbox.innerHTML = '<div class="empty-state">No RFQs received yet. Once buyers send requests through SupplyGrid they will appear here.</div>'
+      return
+    }
+
+    // Analytics
+    const thisMonth = rfqs.filter(r => new Date(r.created_at) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
+    const partCounts = {}
+    rfqs.forEach(r => { partCounts[r.part_number] = (partCounts[r.part_number] || 0) + 1 })
+    const topPart = Object.entries(partCounts).sort((a,b) => b[1]-a[1])[0]
+
+    analytics.style.display = 'block'
+    analytics.innerHTML = `
+      <div class="analytics-row">
+        <div class="analytics-card"><div class="analytics-num">${rfqs.length}</div><div class="analytics-label">Total RFQs</div></div>
+        <div class="analytics-card"><div class="analytics-num">${thisMonth.length}</div><div class="analytics-label">This month</div></div>
+        <div class="analytics-card"><div class="analytics-num" style="font-size:13px;font-family:monospace">${topPart ? topPart[0] : '—'}</div><div class="analytics-label">Most requested part</div></div>
+      </div>
+    `
+
+    inbox.innerHTML = rfqs.map(r => {
+      const notesHtml = r.notes ? '<div style="font-size:12px;color:#888;padding:8px;background:#f8fafc;border-radius:4px;margin-bottom:10px">' + r.notes + '</div>' : ''
+      const mailtoSubject = encodeURIComponent('RE: RFQ ' + r.part_number)
+      const mailtoBody = encodeURIComponent('Thank you for your inquiry on ' + r.part_number + '.\n\nPrice per unit:\nQuantity available:\nDate code:\nLead time:\n\nBest regards')
+      return '<div class="rfq-card">' +
+        '<div class="rfq-card-head"><div class="rfq-pn">' + r.part_number + '</div><div class="rfq-date">' + new Date(r.created_at).toLocaleDateString() + '</div></div>' +
+        '<div class="rfq-grid">' +
+        '<div class="rfq-field"><label>From</label><span>' + r.buyer_email + '</span></div>' +
+        '<div class="rfq-field"><label>Quantity needed</label><span>' + (r.quantity_needed ? r.quantity_needed.toLocaleString() + ' units' : 'Not specified') + '</span></div>' +
+        '<div class="rfq-field"><label>Target price</label><span>' + (r.target_price ? '$' + r.target_price + '/unit' : 'Open to quote') + '</span></div>' +
+        '</div>' + notesHtml +
+        '<a href="mailto:' + r.buyer_email + '?subject=' + mailtoSubject + '&body=' + mailtoBody + '" class="rfq-reply">Reply to buyer \u2192</a>' +
+        '</div>'
+    }).join('')
+  }
+
+  async function loadVerificationBanner() {
+    const { data: supplier } = await client
+      .from('suppliers')
+      .select('verification_tier, company_name, anonymous_seller, account_type')
+      .eq('id', currentUser.id)
+      .maybeSingle()
+
+    const tier = supplier?.verification_tier || 0
+    const isAnon = supplier?.anonymous_seller || false
+    // Anonymous listing available to anyone who is NOT a traditional supplier/broker
+    // Suppliers and brokers build their reputation on visibility — their brand IS their business
+    // OEMs, buyers with excess, and others can hide their identity
+    const canHideListings = !supplier || supplier.account_type !== 'supplier'
+    const banner = document.getElementById('verificationBanner')
+    banner.style.display = 'block'
+
+    const anonToggle = canHideListings ? `
+      <div style="margin-top:12px;padding-top:12px;border-top:0.5px solid #e8e8e8;display:flex;align-items:center;justify-content:space-between;gap:16px">
+        <div>
+          <div style="font-size:13px;color:#111;font-weight:500">Anonymous seller mode</div>
+          <div style="font-size:12px;color:#888;margin-top:2px">Hide your company identity from buyers. Buyers contact SupplyGrid and we forward their interest without revealing who you are. Your verification badge still shows.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+          <span style="font-size:12px;color:${isAnon ? '#166534' : '#aaa'};font-weight:500">${isAnon ? 'Enabled' : 'Disabled'}</span>
+          <div onclick="toggleAnonymous(${isAnon})" style="width:44px;height:24px;border-radius:12px;background:${isAnon ? '#22c55e' : '#e0e0e0'};cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0;border:0.5px solid ${isAnon ? '#16a34a' : '#ccc'}">
+            <div style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${isAnon ? '23px' : '3px'};transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>
+          </div>
+        </div>
+      </div>
+    ` : ''
+
+    if (tier === 0 || tier === 1) {
+      banner.className = 'verify-banner tier-0'
+      banner.innerHTML = `
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div>
+              <div class="verify-banner-text">Get verified to build buyer trust</div>
+              <div class="verify-banner-sub">Submit your business documents to earn a Verified Business badge on all your listings.</div>
+            </div>
+            <button class="verify-btn" onclick="window.location.href='verify.html'">Get verified →</button>
+          </div>
+          ${anonToggle}
+        </div>`
+    } else if (tier === 2) {
+      banner.className = 'verify-banner tier-2'
+      banner.innerHTML = `
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="tier-badge-2">\u2713 Verified Business</span>
+              <div class="verify-banner-sub">Submit quality certifications to upgrade to Certified Supplier.</div>
+            </div>
+            <button class="verify-btn" onclick="window.location.href='verify.html'" style="background:#1d4ed8;color:#fff">Upgrade →</button>
+          </div>
+          ${anonToggle}
+        </div>`
+    } else if (tier === 3) {
+      banner.className = 'verify-banner tier-3'
+      banner.innerHTML = `
+        <div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="tier-badge-3">\u2713 Certified Supplier</span>
+            <div class="verify-banner-sub">Your certifications are verified and displayed on all your listings.</div>
+          </div>
+          ${anonToggle}
+        </div>`
+    }
+  }
+
+  async function toggleAnonymous(current) {
+    const newVal = !current
+    const { error } = await client
+      .from('suppliers')
+      .update({ anonymous_seller: newVal })
+      .eq('id', currentUser.id)
+    if (!error) loadVerificationBanner()
+  }
+
+  async function saveEdit(listingId) {
+    const qty = document.getElementById(`edit-qty-${listingId}`).value
+    const dc = document.getElementById(`edit-dc-${listingId}`).value
+    const type = document.getElementById(`edit-type-${listingId}`).value
+    const { error } = await client
+      .from('listings')
+      .update({ quantity: parseInt(qty), date_code: dc, inventory_type: type, updated_at: new Date().toISOString() })
+      .eq('id', listingId)
+    if (!error) loadListings()
+  }
+
+  async function doSignout() {
+    await client.auth.signOut()
+    window.location.href = 'index.html'
+  }
+
+  const PAGE_TITLES = { overview: 'Overview', listings: 'My listings', bulk: 'Bulk upload', single: 'Single listing', demand: 'Demand intelligence', rfqs: 'RFQ inbox', settings: 'Settings' }
+  function switchTab(name) {
+    document.querySelectorAll('.side-item').forEach(t => t.classList.toggle('active', t.dataset.panel === name))
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
+    const panel = document.getElementById('panel-' + name)
+    if (panel) panel.classList.add('active')
+    const title = document.getElementById('pageTitle')
+    if (title) title.textContent = PAGE_TITLES[name] || 'Dashboard'
+    if (name === 'overview') { loadListings(); loadRFQCount() }
+    if (name === 'listings') loadListings()
+    if (name === 'rfqs') loadRFQs()
+    if (name === 'settings') loadSettings()
+    if (name === 'demand') loadDemand()
+  }
+
+  // Programmatic tab switch (from buttons that are not tabs)
+  function switchTabByName(name) { switchTab(name) }
+
+  function showSettings() { switchTab('settings') }
+
+  async function loadDemand() {
+    const el = document.getElementById('demandContent')
+    el.innerHTML = '<div class="empty-state">Loading...</div>'
+
+    const { data: supplier } = await client.from('suppliers')
+      .select('membership_tier, founding_supplier, founding_joined_at')
+      .eq('id', currentUser.id).maybeSingle()
+
+    if (!hasPremiumAccess(supplier)) {
+      el.innerHTML =
+        '<div class="section" style="text-align:center;padding:44px">' +
+        '<div style="font-size:18px;font-weight:700;color:var(--navy);margin-bottom:10px">Demand intelligence is a premium feature</div>' +
+        '<div style="font-size:14px;color:#64748b;margin-bottom:22px;max-width:440px;margin-left:auto;margin-right:auto;line-height:1.6">See which parts buyers are searching for with no supply listed, and which of your own inventory is most in demand right now. Free for all founding suppliers.</div>' +
+        '<button class="submit-btn" onclick="window.location.href=\'signup.html\'">Become a founding supplier</button>' +
+        '</div>'
+      return
+    }
+
+    // Two sections: the demand brief, and the inventory gap analyzer
+    el.innerHTML =
+      '<div class="section" style="background:linear-gradient(135deg,#0d1e38,#0a1628);border:1px solid #1a3560">' +
+        '<div style="font-size:13px;font-weight:700;color:#60a5fa;margin-bottom:5px">Founding phase</div>' +
+        '<div style="font-size:13px;color:#7ba3c8;line-height:1.6">Demand intelligence grows as buyers search and post wanted parts. In these early days it may be sparse, which is normal for a new platform. The signal builds every day, and as a founding supplier you are seeing it form before anyone else.</div>' +
+      '</div>' +
+      '<div class="section">' +
+        '<div class="section-head"><div><div class="section-title">Live demand brief</div><div class="section-sub">What buyers are looking for that has little or no supply listed</div></div>' +
+        '<button class="nav-btn" style="background:var(--blue);color:#fff;border:none" onclick="generateBrief()">Generate brief</button></div>' +
+        '<div id="briefContent"><div class="empty-state">Click Generate brief to analyze current demand.</div></div>' +
+      '</div>' +
+      '<div class="section">' +
+        '<div class="section-head"><div><div class="section-title">Inventory gap analysis</div><div class="section-sub">Upload a stock list to see which of your parts are most in demand right now</div></div></div>' +
+        '<div class="upload-zone" id="gapDrop" onclick="document.getElementById(\'gapFile\').click()">' +
+          '<div class="upload-icon">📊</div>' +
+          '<div class="upload-title">Drop a stock list or click to browse</div>' +
+          '<div class="upload-sub">CSV or Excel with part numbers. We rank them by current platform demand.</div>' +
+          '<button class="upload-btn">Choose file</button>' +
+          '<div class="template-link" id="gapFileName"></div>' +
+        '</div>' +
+        '<input type="file" id="gapFile" accept=".csv,.xlsx,.xls" style="display:none" />' +
+        '<div id="gapResults"></div>' +
+      '</div>'
+
+    document.getElementById('gapFile').addEventListener('change', e => { if (e.target.files[0]) handleGapFile(e.target.files[0]) })
+  }
+
+  async function generateBrief() {
+    const bc = document.getElementById('briefContent')
+    bc.innerHTML = '<div class="empty-state">Analyzing demand signals...</div>'
+    const { data: { session } } = await client.auth.getSession()
+    try {
+      const res = await fetch(SUPABASE_URL + '/functions/v1/demand-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+        body: JSON.stringify({})
+      })
+      const data = await res.json()
+      if (!data.success) { bc.innerHTML = '<div class="empty-state">' + (data.error === 'no_data' ? 'Not enough demand data yet. As buyers search and post wanted parts, this brief fills in.' : 'Could not generate brief. Try again.') + '</div>'; return }
+      let html = '<div style="background:#f8fafc;border:1px solid #e8edf3;border-radius:10px;padding:18px 20px;font-size:14px;line-height:1.7;color:var(--navy);white-space:pre-wrap">' + data.brief + '</div>'
+      if (data.gaps && data.gaps.length) {
+        html += '<div style="margin-top:16px"><table><thead><tr><th>Part number</th><th>Demand signal</th><th>Supply</th></tr></thead><tbody>'
+        html += data.gaps.map(g => '<tr><td style="font-family:monospace;font-weight:600">' + g.part_number + '</td><td>' + g.demand + ' searches/requests</td><td>' + (g.supply === 0 ? '<span style="color:#dc2626;font-weight:600">None listed</span>' : g.supply + ' listings') + '</td></tr>').join('')
+        html += '</tbody></table></div>'
+      }
+      bc.innerHTML = html
+    } catch (e) {
+      bc.innerHTML = '<div class="empty-state">Could not generate brief. Try again.</div>'
+    }
+  }
+
+  async function handleGapFile(file) {
+    document.getElementById('gapFileName').textContent = 'Reading ' + file.name + '...'
+    const results = document.getElementById('gapResults')
+    try {
+      const reader = new FileReader()
+      reader.onload = async ev => {
+        const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' })
+        const csv = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]).split('\n').slice(0, 300).join('\n')
+        document.getElementById('gapFileName').textContent = file.name
+        results.innerHTML = '<div class="empty-state">Analyzing your stock against platform demand...</div>'
+        const { data: { session } } = await client.auth.getSession()
+        const res = await fetch(SUPABASE_URL + '/functions/v1/inventory-gap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+          body: JSON.stringify({ rows: csv })
+        })
+        const data = await res.json()
+        if (!data.success) { results.innerHTML = '<div class="empty-state">' + (data.error === 'no_demand' ? 'No demand data to compare against yet. This fills in as buyers search.' : 'Analysis failed. Try again.') + '</div>'; return }
+        if (!data.ranked || !data.ranked.length) { results.innerHTML = '<div class="empty-state">None of your stock matches current demand signals yet.</div>'; return }
+        let html = '<div style="margin-top:16px"><div style="font-size:13px;color:#64748b;margin-bottom:12px">' + data.ranked.length + ' of your parts ranked by current demand. List the top ones first.</div><table><thead><tr><th>Part number</th><th>Demand</th><th>Current supply</th><th>Priority</th></tr></thead><tbody>'
+        html += data.ranked.map(r => {
+          const pri = r.demand > 0 && r.supply === 0 ? '<span style="color:#166534;font-weight:700">High</span>' : r.demand > 0 ? '<span style="color:#9a3412;font-weight:600">Medium</span>' : '<span style="color:#94a3b8">Low</span>'
+          return '<tr><td style="font-family:monospace;font-weight:600">' + r.part_number + '</td><td>' + r.demand + '</td><td>' + (r.supply === 0 ? 'None' : r.supply) + '</td><td>' + pri + '</td></tr>'
+        }).join('')
+        html += '</tbody></table></div>'
+        results.innerHTML = html
+      }
+      reader.readAsArrayBuffer(file)
+    } catch (e) {
+      results.innerHTML = '<div class="empty-state">Could not read that file.</div>'
+    }
+  }
+
+  async function loadSettings() {
+    const el = document.getElementById('settingsContent')
+    el.innerHTML = '<div class="empty-state">Loading...</div>'
+
+    const { data: supplier } = await client.from('suppliers')
+      .select('company_name, email, region, country, year_established, account_type, verification_tier, membership_tier, slug, anonymous_seller')
+      .eq('id', currentUser.id).maybeSingle()
+
+    const { data: profile } = await client.from('profiles')
+      .select('first_name, last_name, phone')
+      .eq('user_id', currentUser.id).maybeSingle()
+
+    const tier = supplier?.verification_tier || 0
+    const isVerified = tier >= 2
+    const canHideListings = supplier?.account_type !== 'supplier'
+    const isAnon = supplier?.anonymous_seller || false
+
+    const lockedNote = isVerified
+      ? '<div style="font-size:11px;color:#94a3b8;margin-top:5px">Locked after verification. Contact admin to change.</div>'
+      : '<div style="font-size:11px;color:#94a3b8;margin-top:5px">Can be edited until your account is verified.</div>'
+
+    const tierLabels = ['Registered', '', 'Verified Business', 'Certified Supplier']
+    const tierColors = ['#94a3b8', '', '#1d4ed8', '#0a1628']
+    const tierBg = ['#f1f5f9', '', '#eff6ff', '#f1f5f9']
+
+    el.innerHTML =
+      // Verification status card
+      '<div style="background:' + tierBg[tier] + ';border:1px solid ' + (tier === 3 ? '#cbd5e1' : tier === 2 ? '#bfdbfe' : '#e2e8f0') + ';border-radius:12px;padding:16px 18px;margin-bottom:22px;display:flex;align-items:center;justify-content:space-between">' +
+        '<div>' +
+          '<div style="font-size:12px;font-weight:600;color:' + (tierColors[tier] || '#64748b') + '">' + (tierLabels[tier] || 'Registered') + '</div>' +
+          '<div style="font-size:12px;color:#64748b;margin-top:2px">' + (tier === 0 ? 'Complete your profile and apply for verification to build trust with buyers.' : tier === 2 ? 'Your business has been verified. Apply for Certified status to unlock the highest trust tier.' : 'Highest verification tier. Buyers trust Certified Supplier listings most.') + '</div>' +
+        '</div>' +
+        (tier < 3 ? '<button class="submit-btn" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="window.location.href=\'verify.html\'">Apply for ' + (tier < 2 ? 'verification' : 'certification') + '</button>' : '') +
+      '</div>' +
+
+      // Personal info
+      '<div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">Personal information</div>' +
+      '<div class="grid-2" style="margin-bottom:14px">' +
+        '<div class="field"><label>First name</label><input id="sFirstName" type="text" value="' + (profile?.first_name || '') + '" /></div>' +
+        '<div class="field"><label>Last name</label><input id="sLastName" type="text" value="' + (profile?.last_name || '') + '" /></div>' +
+      '</div>' +
+      '<div class="field" style="margin-bottom:20px"><label>Phone</label><input id="sPhone" type="tel" value="' + (profile?.phone || '') + '" placeholder="Optional" /></div>' +
+
+      // Company info
+      '<div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">Company information</div>' +
+      '<div class="field"><label>Company name</label>' +
+        '<input id="sCompany" type="text" value="' + (supplier?.company_name || '') + '"' + (isVerified ? ' readonly style="background:#f8fafc;color:#94a3b8"' : '') + ' />' +
+        lockedNote +
+      '</div>' +
+      '<div class="grid-2" style="margin-bottom:14px">' +
+        '<div class="field"><label>Region</label><select id="sRegion">' +
+          '<option value="">Select region</option>' +
+          ['Americas', 'Europe', 'Asia'].map(r => '<option value="' + r + '"' + (supplier?.region === r ? ' selected' : '') + '>' + r + '</option>').join('') +
+        '</select></div>' +
+        '<div class="field"><label>Country</label><input id="sCountry" type="text" value="' + (supplier?.country || '') + '" placeholder="e.g. US, DE, SG" /></div>' +
+      '</div>' +
+      '<div class="field" style="margin-bottom:20px"><label>Year established</label><input id="sYear" type="number" value="' + (supplier?.year_established || '') + '" placeholder="e.g. 2008" style="max-width:160px" /></div>' +
+
+      // Account info (read only)
+      '<div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">Account</div>' +
+      '<div class="grid-2" style="margin-bottom:14px">' +
+        '<div class="field"><label>Email</label><input type="text" value="' + (supplier?.email || currentUser.email || '') + '" readonly style="background:#f8fafc;color:#94a3b8" /></div>' +
+        '<div class="field"><label>Account type</label><input type="text" value="' + (supplier?.account_type === 'supplier' ? 'Supplier / Broker' : supplier?.account_type === 'oem' ? 'OEM' : 'Buyer') + '" readonly style="background:#f8fafc;color:#94a3b8" /></div>' +
+      '</div>' +
+      '<div class="field" style="margin-bottom:20px"><label>Membership</label><input type="text" value="' + (supplier?.membership_tier === 'paid' ? 'Intelligence member' : 'Free') + '" readonly style="background:#f8fafc;color:#94a3b8" /></div>' +
+
+      // Anonymous toggle for non-suppliers
+      (canHideListings ? '<div style="border-top:1px solid #eef2f7;padding-top:18px;margin-bottom:20px">' +
+        '<div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">Listing visibility</div>' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#f8fafc;border:1px solid #e8edf3;border-radius:10px">' +
+          '<div><div style="font-size:14px;font-weight:600;color:var(--navy)">List inventory anonymously</div><div style="font-size:12px;color:#64748b;margin-top:2px">Your company name is hidden from buyers. RFQs are routed through SupplyGrid.</div></div>' +
+          '<div onclick="toggleAnonymous(' + isAnon + ')" style="width:44px;height:24px;border-radius:12px;background:' + (isAnon ? '#22c55e' : '#e0e0e0') + ';cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0;border:1px solid ' + (isAnon ? '#16a34a' : '#d0d0d0') + '">' +
+            '<div style="position:absolute;top:2px;left:' + (isAnon ? '22px' : '2px') + ';width:20px;height:20px;border-radius:50%;background:#fff;transition:left 0.2s;box-shadow:0 1px 2px rgba(0,0,0,0.2)"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' : '') +
+
+      // Save button
+      '<div style="display:flex;gap:10px;align-items:center">' +
+        '<button class="submit-btn" onclick="saveSettings()">Save changes</button>' +
+      '</div>' +
+      '<div class="status" id="settingsStatus"></div>' +
+
+      // Danger zone
+      '<div style="border-top:1px solid #fee2e2;margin-top:36px;padding-top:24px">' +
+        '<div style="font-size:12px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Danger zone</div>' +
+        '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:18px 20px">' +
+          '<div style="font-size:14px;font-weight:600;color:var(--navy);margin-bottom:4px">Request account deletion</div>' +
+          '<div style="font-size:13px;color:#64748b;line-height:1.6;margin-bottom:14px">This submits a request to permanently delete your account, your listings, and your profile. We will process it and confirm by email. This cannot be undone once processed.</div>' +
+          '<button onclick="requestAccountDeletion()" style="background:#fff;color:#dc2626;border:1px solid #fca5a5;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Request deletion</button>' +
+          '<div class="status" id="deletionStatus"></div>' +
+        '</div>' +
+      '</div>'
+  }
+
+  async function requestAccountDeletion() {
+    if (!confirm('Submit a request to permanently delete your account? This will remove your listings and profile once processed. This cannot be undone.')) return
+    const status = document.getElementById('deletionStatus')
+    status.className = 'status loading'; status.textContent = 'Submitting request...'
+    try {
+      // Record the request for admin processing (auth deletion requires service role)
+      const { error } = await client.from('deletion_requests').insert({
+        user_id: currentUser.id,
+        email: currentUser.email,
+        status: 'pending'
+      })
+      if (error) {
+        status.className = 'status error'
+        status.textContent = 'Could not submit request: ' + error.message
+        return
+      }
+      status.className = 'status success'
+      status.textContent = 'Your deletion request has been submitted. We will process it and confirm by email.'
+    } catch (e) {
+      status.className = 'status error'
+      status.textContent = 'Could not submit request. Please try again.'
+    }
+  }
+
+  async function saveSettings() {
+    const status = document.getElementById('settingsStatus')
+    status.className = 'status loading'; status.textContent = 'Saving...'
+
+    const company = document.getElementById('sCompany').value.trim()
+    const firstName = document.getElementById('sFirstName').value.trim()
+    const lastName = document.getElementById('sLastName').value.trim()
+    const phone = document.getElementById('sPhone').value.trim()
+    const region = document.getElementById('sRegion').value
+    const country = document.getElementById('sCountry').value.trim()
+    const year = document.getElementById('sYear').value
+
+    if (!firstName || !lastName) { status.className = 'status error'; status.textContent = 'First name and last name are required.'; return }
+
+    // Update suppliers row
+    const { data: current } = await client.from('suppliers').select('verification_tier, slug').eq('id', currentUser.id).maybeSingle()
+    const isVerified = (current?.verification_tier || 0) >= 2
+
+    const supplierUpdate = {
+      region: region || null,
+      country: country || null,
+      year_established: year ? parseInt(year) : null
+    }
+
+    // Only update company name if not yet verified
+    if (!isVerified && company) {
+      supplierUpdate.company_name = company
+      // Regenerate clean slug from company name
+      const cleanSlug = company.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim()
+      if (cleanSlug && cleanSlug !== current?.slug) {
+        // Check slug is not taken
+        const { data: existing } = await client.from('suppliers').select('id').eq('slug', cleanSlug).neq('id', currentUser.id).maybeSingle()
+        supplierUpdate.slug = existing ? cleanSlug + '-' + Math.random().toString(36).slice(2, 5) : cleanSlug
+      }
+    }
+
+    const { error: suppErr } = await client.from('suppliers').update(supplierUpdate).eq('id', currentUser.id)
+
+    // Update profiles row
+    const { error: profErr } = await client.from('profiles').upsert({
+      user_id: currentUser.id,
+      first_name: firstName,
+      last_name: lastName,
+      company_name: company || null,
+      phone: phone || null,
+      profile_complete: true
+    }, { onConflict: 'user_id' })
+
+    if (suppErr || profErr) {
+      status.className = 'status error'
+      status.textContent = 'Save failed: ' + (suppErr?.message || profErr?.message || 'Unknown error')
+      return
+    }
+
+    status.className = 'status success'
+    status.textContent = 'Settings saved.'
+    // Reload banner to reflect any changes
+    setTimeout(() => { loadVerificationBanner(); loadSettings() }, 800)
+  }
+
+  // TEMPLATE DOWNLOAD
+  function downloadTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['Part Number', 'Quantity', 'Type', 'Date Code', 'Price'],
+      ['TMS320F28335PGFA', 1000, 'stocked', '2023+', ''],
+      ['LM358DR', 5000, 'brokered', '2022+', ''],
+    ])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Inventory')
+    XLSX.writeFile(wb, 'supplygrid-inventory-template.xlsx')
+  }
+
+  // DRAG AND DROP
+  function handleDragOver(e) { e.preventDefault(); document.getElementById('uploadZone').classList.add('dragover') }
+  function handleDragLeave(e) { document.getElementById('uploadZone').classList.remove('dragover') }
+  function handleDrop(e) {
+    e.preventDefault()
+    document.getElementById('uploadZone').classList.remove('dragover')
+    const file = e.dataTransfer.files[0]
+    if (file) handleFile(file)
+  }
+
+  function handleFile(file) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target.result)
+      const wb = XLSX.read(data, { type: 'array' })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' })
+      parseRows(rows)
+    }
+    reader.readAsArrayBuffer(file)
+  }
+
+  function normalizeKey(key) {
+    return key.toString().toLowerCase().replace(/[\s_\-\.#\/]/g, '')
+  }
+
+  function findCol(row, variants) {
+    const keys = Object.keys(row)
+    for (const v of variants) {
+      const match = keys.find(k => normalizeKey(k) === normalizeKey(v))
+      if (match && row[match] !== '' && row[match] !== undefined) return row[match]
+    }
+    return ''
+  }
+
+  function parseRows(rows) {
+    bulkRows = rows.map(r => {
+      const pn = findCol(r, ['Part Number','PartNumber','part_number','Part No','PartNo','MPN','mpn','part','Part','Item','item','Component','component']).toString().trim().toUpperCase()
+      const qtyRaw = findCol(r, ['Quantity','quantity','QTY','qty','Qty','Amount','amount','Stock','stock','Available','available'])
+      const qty = parseInt(qtyRaw) || 0
+      const typeRaw = findCol(r, ['Type','type','Inventory Type','inventory_type','InventoryType','Category','category','Stock Type','stocktype']).toString().toLowerCase().trim()
+      const dc = findCol(r, ['Date Code','date_code','DateCode','DC','dc','Date','date','Year','year','Datecode']).toString().trim()
+      const priceRaw = findCol(r, ['Price','price','Unit Price','unit_price','UnitPrice','Cost','cost','USD','usd'])
+      const price = parseFloat(priceRaw) || null
+
+      // Normalize type — accept common variations
+      let normalizedType = 'stocked'
+      if (typeRaw.includes('broker') || typeRaw === 'b' || typeRaw === 'wtb') normalizedType = 'brokered'
+      else if (typeRaw.includes('stock') || typeRaw === 's' || typeRaw === 'wts' || typeRaw === 'in stock' || typeRaw === '') normalizedType = 'stocked'
+      else if (['stocked','brokered'].includes(typeRaw)) normalizedType = typeRaw
+
+      const valid = pn.length > 0 && qty > 0
+      return { pn, qty, type: normalizedType, dc, price, valid }
+    }).filter(r => r.pn)
+
+    const preview = document.getElementById('bulkPreview')
+    const tbody = document.getElementById('bulkTableBody')
+    const validCount = bulkRows.filter(r => r.valid).length
+    document.getElementById('bulkCount').textContent = `${bulkRows.length} rows · ${validCount} valid`
+    tbody.innerHTML = bulkRows.slice(0, 10).map(r => `
+      <tr>
+        <td>${r.pn}</td>
+        <td>${r.qty}</td>
+        <td>${r.dc || '—'}</td>
+        <td>${r.type}</td>
+        <td>${r.price ? '$' + r.price : '—'}</td>
+        <td class="${r.valid ? 'row-valid' : 'row-error'}">${r.valid ? '✓ Ready' : '✗ Missing part # or qty'}</td>
+      </tr>
+    `).join('')
+    if (bulkRows.length > 10) tbody.innerHTML += `<tr><td colspan="6" style="color:#555;text-align:center;padding:10px">...and ${bulkRows.length - 10} more rows</td></tr>`
+    preview.classList.add('visible')
+    document.getElementById('bulkSubmitBtn').style.display = 'block'
+  }
+
+  async function submitBulk() {
+    const valid = bulkRows.filter(r => r.valid)
+    if (!valid.length) return
+    const btn = document.getElementById('bulkSubmitBtn')
+    const progress = document.getElementById('bulkProgress')
+    const progressBar = document.getElementById('progressBar')
+    const progressText = document.getElementById('progressText')
+    const status = document.getElementById('bulkStatus')
+    btn.disabled = true
+    progress.classList.add('visible')
+    let done = 0, succeeded = 0, failed = 0
+
+    for (const row of valid) {
+      try {
+        progressText.textContent = `Posting ${row.pn}... (${done + 1} of ${valid.length})`
+
+        // Insert listing directly — no Digi-Key dependency, supplier data is the source of truth
+        const { error: listErr } = await client.from('listings').insert({
+          supplier_id: currentUser.id,
+          part_number_listed: row.pn.toUpperCase(),
+          manufacturer: row.mfr || null,
+          inventory_type: row.type || 'brokered',
+          quantity: parseInt(row.qty) || 0,
+          date_code: row.dc || null,
+          condition: 'Factory New',
+          price_visible: !!row.price,
+          price: row.price || null,
+          active: true,
+          updated_at: new Date().toISOString()
+        })
+
+        if (listErr) {
+          failed++
+          console.error(`Failed ${row.pn}:`, listErr.message)
+        } else {
+          succeeded++
+          // Background parts table upsert — best effort, never blocks
+          try {
+            const { data: existing } = await client.from('parts').select('id').eq('part_number', row.pn.toUpperCase()).maybeSingle()
+            if (!existing) {
+              await client.from('parts').insert({
+                part_number: row.pn.toUpperCase(),
+                part_number_base: row.pn.toUpperCase().replace(/(TR|REEL|TAPE|TRL|PBF|PBFREE)$/, ''),
+                manufacturer: row.mfr || null,
+                source_api: 'manual',
+                search_count: 0
+              })
+            }
+          } catch { /* parts upsert is best-effort */ }
+          enrichPart(row.pn.toUpperCase(), row.mfr)
+        }
+      } catch(e) {
+        failed++
+        console.error(`Error on ${row.pn}:`, e)
+      }
+      done++
+      progressBar.style.width = Math.round((done / valid.length) * 100) + '%'
+    }
+
+    progressText.textContent = 'Done.'
+    if (succeeded === valid.length) {
+      status.className = 'status success'
+      status.textContent = `All ${succeeded} listings posted. They are now searchable by buyers.`
+    } else if (succeeded > 0) {
+      status.className = 'status success'
+      status.textContent = `${succeeded} of ${valid.length} listings posted. ${failed} failed — check the console for details.`
+    } else {
+      status.className = 'status error'
+      status.textContent = `Upload failed. Make sure you are logged in and try again.`
+    }
+    btn.disabled = false
+    setTimeout(() => loadListings(), 500)
+  }
+
+  let lookupTimer = null
+  let lastLookupData = null
+
+  function debounceLookup() {
+    clearTimeout(lookupTimer)
+    const val = document.getElementById('partNumber').value.trim()
+    if (val.length < 4) return
+    lookupTimer = setTimeout(() => lookupPart(), 700)
+  }
+
+  async function lookupPart() {
+    const partNumber = document.getElementById('partNumber').value.trim()
+    if (!partNumber) return
+    const preview = document.getElementById('partPreview')
+    const mfrField = document.getElementById('manufacturer')
+    preview.classList.remove('visible')
+    lastLookupData = null
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/rapid-action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ANON_KEY}` },
+        body: JSON.stringify({ partNumber })
+      })
+      const data = await res.json()
+      if (data.part) {
+        // Auto-fill manufacturer only if the supplier hasn't typed one yet
+        if (data.part.manufacturer && !mfrField.value.trim()) {
+          mfrField.value = data.part.manufacturer
+        }
+        document.getElementById('prev-cat').textContent = data.part.category || '—'
+        document.getElementById('prev-pkg').textContent = data.part.package || '—'
+        document.getElementById('prev-desc').textContent = data.part.description || '—'
+        preview.classList.add('visible')
+        lastLookupData = data.part
+      }
+      // No error shown if not found — supplier provides data manually, that is fine
+    } catch {
+      // Lookup failure is always silent — it never blocks listing
+    }
+  }
+
+  async function submitSingle() {
+    const pn = document.getElementById('partNumber').value.trim().toUpperCase()
+    const mfr = document.getElementById('manufacturer').value.trim()
+    const type = document.getElementById('inventoryType').value
+    const qty = document.getElementById('quantity').value
+    const dc = document.getElementById('dateCode').value.trim()
+    const status = document.getElementById('submitStatus')
+
+    if (!pn) { status.className = 'status error'; status.textContent = 'Enter a part number.'; return }
+    if (!mfr) { status.className = 'status error'; status.textContent = 'Enter the manufacturer — you know this even if we do not have reference data.'; return }
+    if (!type) { status.className = 'status error'; status.textContent = 'Select stocked or brokered.'; return }
+    if (!qty || parseInt(qty) < 1) { status.className = 'status error'; status.textContent = 'Enter a quantity.'; return }
+
+    status.className = 'status loading'
+    status.textContent = 'Posting listing...'
+
+    try {
+      // Step 1: Insert the listing directly — fully self-contained, no external dependency
+      const { error: listErr } = await client.from('listings').insert({
+        supplier_id: currentUser.id,
+        part_number_listed: pn,
+        manufacturer: mfr,
+        description: lastLookupData?.description || null,
+        inventory_type: type,
+        quantity: parseInt(qty),
+        date_code: dc || null,
+        condition: 'Factory New',
+        price_visible: false,
+        price: null,
+        active: true,
+        updated_at: new Date().toISOString()
+      })
+
+      if (listErr) throw new Error(listErr.message)
+
+      // Step 2: Background parts table upsert for catalog building — never blocks listing
+      try {
+        const { data: existingPart } = await client
+          .from('parts')
+          .select('id')
+          .eq('part_number', pn)
+          .maybeSingle()
+
+        if (!existingPart) {
+          await client.from('parts').insert({
+            part_number: pn,
+            part_number_base: pn.replace(/(TR|REEL|TAPE|TRL|PBF|PBFREE)$/, ''),
+            manufacturer: mfr,
+            description: lastLookupData?.description || null,
+            source_api: lastLookupData ? 'digikey' : 'manual',
+            search_count: 0
+          })
+        } else {
+          // Update manufacturer/description if we got Digi-Key data and it was missing
+          if (lastLookupData?.description) {
+            await client.from('parts').update({
+              manufacturer: lastLookupData.manufacturer || mfr,
+              description: lastLookupData.description
+            }).eq('id', existingPart.id)
+          }
+        }
+      } catch {
+        // Parts table update is best-effort only — listing already posted successfully
+      }
+
+      // Success
+      status.className = 'status success'
+      status.textContent = `Listed. ${pn} is now searchable by buyers.`
+      document.getElementById('partNumber').value = ''
+      document.getElementById('manufacturer').value = ''
+      document.getElementById('quantity').value = ''
+      document.getElementById('dateCode').value = ''
+      document.getElementById('inventoryType').value = ''
+      document.getElementById('partPreview').classList.remove('visible')
+      lastLookupData = null
+
+      // Trigger demand alerts for buyers watching this part
+      checkDemandAlerts(pn, currentUser.id)
+      enrichPart(pn, mfr)
+      setTimeout(() => loadListings(), 500)
+
+    } catch(err) {
+      status.className = 'status error'
+      status.textContent = 'Could not post listing: ' + err.message
+    }
+  }
+
+  function enrichPart(partNumber, manufacturer) {
+    // Fire and forget — enrichment happens in the background, never blocks the listing
+    // The Edge Function checks its own cache first, so re-listing a known part is a no-op
+    fetch(SUPABASE_URL + '/functions/v1/enrich-part', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ANON_KEY },
+      body: JSON.stringify({ part_number: partNumber, manufacturer: manufacturer || null })
+    }).catch(() => {})
+  }
+
+  async function checkDemandAlerts(partNumber, supplierId) {
+    // Find buyers who submitted a want-to-buy for this part number
+    try {
+      const base = partNumber.replace(/(TR|REEL|TAPE|TRL|PBF|PBFREE)$/, '')
+      const { data: wants } = await client
+        .from('want_to_buy')
+        .select('id, buyer_email, part_number')
+        .eq('fulfilled', false)
+        .or(`part_number.ilike.${partNumber}%,part_number.ilike.${base}%`)
+
+      if (!wants?.length) return
+
+      // Get the listing id for reference
+      const { data: listing } = await client
+        .from('listings')
+        .select('id')
+        .eq('supplier_id', supplierId)
+        .eq('part_number_listed', partNumber)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      // Create demand alert records for each matching buyer
+      const alerts = wants.map(w => ({
+        buyer_email: w.buyer_email,
+        part_number: partNumber,
+        supplier_id: supplierId,
+        listing_id: listing?.id || null,
+        sent: false
+      }))
+
+      if (alerts.length) {
+        await client.from('demand_alerts').insert(alerts)
+      }
+    } catch(e) {
+      // Demand alerts are best-effort, never block the listing flow
+      console.log('Demand alert check failed silently:', e)
+    }
+  }
+
+  let allListings = []
+  let selectedListings = new Set()
+
+  async function loadListings() {
+    if (!currentUser) return
+    document.getElementById('listingsTable').innerHTML = '<div class="empty-state">Loading...</div>'
+
+    const { data: listings, error } = await client
+      .from('listings')
+      .select('id, part_number_listed, manufacturer, inventory_type, quantity, date_code, created_at, active')
+      .eq('supplier_id', currentUser.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      document.getElementById('listingsTable').innerHTML = '<div class="empty-state">Could not load listings: ' + error.message + '</div>'
+      return
+    }
+
+    allListings = listings || []
+    selectedListings.clear()
+
+    const activeCount = allListings.filter(l => l.active).length
+    document.getElementById('statActive').textContent = activeCount
+    document.getElementById('statStocked').textContent = allListings.filter(l => l.active && l.inventory_type === 'stocked').length
+    document.getElementById('statBrokered').textContent = allListings.filter(l => l.active && l.inventory_type === 'brokered').length
+
+    const { data: supplier } = await client.from('suppliers').select('verification_tier').eq('id', currentUser.id).maybeSingle()
+    loadOnboardingChecklist(activeCount, supplier?.verification_tier || 0)
+
+    if (!allListings.length) {
+      document.getElementById('listingsToolbar').style.display = 'none'
+      document.getElementById('listingsSummary').textContent = 'No listings yet'
+      document.getElementById('listingsTable').innerHTML =
+        '<div class="empty-state" style="padding:48px"><div style="font-size:15px;color:var(--navy);font-weight:600;margin-bottom:8px">No listings yet</div>' +
+        '<div style="margin-bottom:18px">Add your inventory to start getting found by buyers.</div>' +
+        '<button class="submit-btn" onclick="switchTabByName(\'bulk\')">Bulk upload</button> ' +
+        '<button class="edit-btn" onclick="switchTabByName(\'single\')">Add a single part</button></div>'
+      return
+    }
+
+    const hidden = allListings.length - activeCount
+    document.getElementById('listingsSummary').textContent = activeCount + ' visible · ' + hidden + ' hidden · ' + allListings.length + ' total'
+    document.getElementById('listingsToolbar').style.display = 'block'
+    renderListings()
+  }
+
+  function renderListings() {
+    const term = (document.getElementById('listingSearch')?.value || '').toUpperCase().trim()
+    const fStatus = document.getElementById('listingFilterStatus')?.value || 'all'
+    const fType = document.getElementById('listingFilterType')?.value || 'all'
+
+    let rows = allListings.filter(l => {
+      if (term && !l.part_number_listed.toUpperCase().includes(term) && !(l.manufacturer || '').toUpperCase().includes(term)) return false
+      if (fStatus === 'active' && !l.active) return false
+      if (fStatus === 'hidden' && l.active) return false
+      if (fType !== 'all' && l.inventory_type !== fType) return false
+      return true
+    })
+
+    if (!rows.length) {
+      document.getElementById('listingsTable').innerHTML = '<div class="empty-state">No listings match your filters.</div>'
+      return
+    }
+
+    const body = rows.map(l => {
+      const dc = l.date_code || '\u2014'
+      const mfr = l.manufacturer || '\u2014'
+      const qty = l.quantity ? l.quantity.toLocaleString() : '\u2014'
+      const checked = selectedListings.has(l.id) ? ' checked' : ''
+      const statusBadge = l.active
+        ? '<span style="font-size:10px;padding:3px 8px;border-radius:5px;background:#f0fdf4;color:#166534;font-weight:700">Visible</span>'
+        : '<span style="font-size:10px;padding:3px 8px;border-radius:5px;background:#f1f5f9;color:#64748b;font-weight:700">Hidden</span>'
+      const toggleBtn = l.active
+        ? '<button class="edit-btn" onclick="toggleHide(\'' + l.id + '\',false)">Hide</button>'
+        : '<button class="edit-btn" onclick="toggleHide(\'' + l.id + '\',true)">Show</button>'
+      return '<tr' + (l.active ? '' : ' style="opacity:0.55"') + '>' +
+        '<td style="width:28px"><input type="checkbox"' + checked + ' onchange="toggleSelect(\'' + l.id + '\',this.checked)" style="accent-color:var(--blue)" /></td>' +
+        '<td style="font-family:monospace;font-size:12px;font-weight:600">' + l.part_number_listed + '</td>' +
+        '<td style="font-size:12px;color:#555">' + mfr + '</td>' +
+        '<td class="mono-sm">' + dc + '</td>' +
+        '<td style="font-family:monospace;font-size:13px">' + qty + '</td>' +
+        '<td><span class="badge badge-' + l.inventory_type + '">' + l.inventory_type + '</span></td>' +
+        '<td>' + statusBadge + '</td>' +
+        '<td style="white-space:nowrap">' +
+          toggleBtn + ' ' +
+          '<button class="edit-btn" onclick="toggleEdit(\'' + l.id + '\')">Edit</button> ' +
+          '<button class="delete-btn" onclick="deleteListing(\'' + l.id + '\')">Delete</button>' +
+        '</td>' +
+        '</tr>' +
+        '<tr id="edit-row-' + l.id + '" style="display:none">' +
+          '<td colspan="8" style="padding:0 0 8px 0">' +
+            '<div class="inline-edit">' +
+              '<div><label>Quantity</label><input type="number" id="edit-qty-' + l.id + '" value="' + (l.quantity || '') + '" /></div>' +
+              '<div><label>Date code</label><input type="text" id="edit-dc-' + l.id + '" value="' + (l.date_code || '') + '" /></div>' +
+              '<div><label>Type</label><select id="edit-type-' + l.id + '">' +
+                '<option value="stocked"' + (l.inventory_type === 'stocked' ? ' selected' : '') + '>Stocked</option>' +
+                '<option value="brokered"' + (l.inventory_type === 'brokered' ? ' selected' : '') + '>Brokered</option>' +
+              '</select></div>' +
+              '<div><button class="save-edit-btn" onclick="saveEdit(\'' + l.id + '\')">Save</button></div>' +
+            '</div>' +
+          '</td>' +
+        '</tr>'
+    }).join('')
+
+    document.getElementById('listingsTable').innerHTML =
+      '<table><thead><tr>' +
+      '<th style="width:28px"><input type="checkbox" onchange="toggleSelectAll(this.checked)" style="accent-color:var(--blue)" /></th>' +
+      '<th>Part number</th><th>MFR</th><th>Date code</th><th>Qty</th><th>Type</th><th>Status</th><th>Actions</th>' +
+      '</tr></thead><tbody>' + body + '</tbody></table>' +
+      '<div style="font-size:12px;color:#94a3b8;margin-top:10px">Showing ' + rows.length + ' of ' + allListings.length + ' listings</div>'
+
+    updateBulkBar()
+  }
+
+  function toggleSelect(id, checked) {
+    if (checked) selectedListings.add(id); else selectedListings.delete(id)
+    updateBulkBar()
+  }
+  function toggleSelectAll(checked) {
+    const term = (document.getElementById('listingSearch')?.value || '').toUpperCase().trim()
+    const fStatus = document.getElementById('listingFilterStatus')?.value || 'all'
+    const fType = document.getElementById('listingFilterType')?.value || 'all'
+    allListings.forEach(l => {
+      if (term && !l.part_number_listed.toUpperCase().includes(term) && !(l.manufacturer || '').toUpperCase().includes(term)) return
+      if (fStatus === 'active' && !l.active) return
+      if (fStatus === 'hidden' && l.active) return
+      if (fType !== 'all' && l.inventory_type !== fType) return
+      if (checked) selectedListings.add(l.id); else selectedListings.delete(l.id)
+    })
+    renderListings()
+  }
+  function updateBulkBar() {
+    const bar = document.getElementById('bulkActionBar')
+    if (selectedListings.size > 0) {
+      bar.style.display = 'flex'
+      document.getElementById('selCount').textContent = selectedListings.size + ' selected'
+    } else {
+      bar.style.display = 'none'
+    }
+  }
+
+  async function toggleHide(id, makeVisible) {
+    await client.from('listings').update({ active: makeVisible }).eq('id', id)
+    const l = allListings.find(x => x.id === id)
+    if (l) l.active = makeVisible
+    refreshCounts()
+    renderListings()
+  }
+
+  async function bulkSetActive(makeVisible) {
+    const ids = [...selectedListings]
+    if (!ids.length) return
+    await client.from('listings').update({ active: makeVisible }).in('id', ids)
+    allListings.forEach(l => { if (selectedListings.has(l.id)) l.active = makeVisible })
+    selectedListings.clear()
+    refreshCounts()
+    renderListings()
+  }
+
+  async function bulkDelete() {
+    const ids = [...selectedListings]
+    if (!ids.length) return
+    if (!confirm('Permanently delete ' + ids.length + ' listing' + (ids.length !== 1 ? 's' : '') + '? This cannot be undone.')) return
+    await client.from('listings').delete().in('id', ids)
+    allListings = allListings.filter(l => !selectedListings.has(l.id))
+    selectedListings.clear()
+    refreshCounts()
+    renderListings()
+  }
+
+  function refreshCounts() {
+    const activeCount = allListings.filter(l => l.active).length
+    const hidden = allListings.length - activeCount
+    document.getElementById('statActive').textContent = activeCount
+    document.getElementById('statStocked').textContent = allListings.filter(l => l.active && l.inventory_type === 'stocked').length
+    document.getElementById('statBrokered').textContent = allListings.filter(l => l.active && l.inventory_type === 'brokered').length
+    document.getElementById('listingsSummary').textContent = activeCount + ' visible · ' + hidden + ' hidden · ' + allListings.length + ' total'
+  }
+
+  async function deleteListing(id) {
+    if (!confirm('Permanently delete this listing? This cannot be undone. To temporarily remove it from search, use Hide instead.')) return
+    await client.from('listings').delete().eq('id', id)
+    allListings = allListings.filter(l => l.id !== id)
+    selectedListings.delete(id)
+    refreshCounts()
+    renderListings()
+  }
+
+  function toggleEdit(id) {
+    const row = document.getElementById('edit-row-' + id)
+    if (row) row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row'
+  }
+
+  init()
+</script>
+</body>
+</html>
