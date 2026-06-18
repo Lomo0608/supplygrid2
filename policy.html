@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SupplyGrid — Anti-Counterfeiting and Trust Policy</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --navy: #0a1628; --blue: #3b82f6; --text-muted: #7ba3c8; --text-faint: #4a7aa8; --border-dark: #1a3560; --ink-2: #475569; --ink-3: #94a3b8; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif; background: #f5f7fa; color: var(--navy); -webkit-font-smoothing: antialiased; }
+    a { text-decoration: none; color: var(--blue); }
+    nav { background: rgba(10,22,40,0.95); backdrop-filter: blur(12px); height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; border-bottom: 0.5px solid var(--border-dark); position: sticky; top: 0; z-index: 100; }
+    .nav-logo { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: 0.5px; cursor: pointer; }
+    .nav-logo em { font-style: normal; color: var(--blue); }
+    .nav-btn { font-size: 13px; padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-dark); background: transparent; color: #e2e8f0; cursor: pointer; font-family: inherit; font-weight: 500; }
+    .nav-btn:hover { border-color: var(--blue); color: #fff; }
+
+    .main { max-width: 820px; margin: 0 auto; padding: 44px 24px 40px; }
+    .doc { background: #fff; border: 1px solid #e6ebf2; border-radius: 16px; padding: 40px 44px; box-shadow: 0 1px 2px rgba(10,22,40,0.04); }
+    h1 { font-size: 27px; font-weight: 700; letter-spacing: -0.6px; margin-bottom: 6px; }
+    .sub { font-size: 14px; color: var(--ink-2); line-height: 1.6; margin-bottom: 8px; }
+    .updated { font-size: 12.5px; color: var(--ink-3); margin-bottom: 26px; }
+    .section { margin-bottom: 30px; }
+    .section-title { font-size: 17px; font-weight: 700; color: var(--navy); letter-spacing: -0.3px; margin-bottom: 12px; padding-bottom: 9px; border-bottom: 1px solid #eef2f7; }
+    .section p { font-size: 14px; color: var(--ink-2); line-height: 1.75; margin-bottom: 12px; }
+    .section ul { padding-left: 20px; margin-bottom: 12px; }
+    .section li { font-size: 14px; color: var(--ink-2); line-height: 1.7; margin-bottom: 7px; }
+    .callout { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; }
+    .callout-title { font-size: 13px; font-weight: 700; color: #1d4ed8; margin-bottom: 6px; }
+    .callout p { font-size: 13px; color: #1e3a8a; line-height: 1.7; margin-bottom: 0; }
+    .prohibited { background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 16px 20px; margin: 16px 0; }
+    .prohibited-title { font-size: 13px; font-weight: 700; color: #991b1b; margin-bottom: 8px; }
+    .prohibited li { font-size: 13px; color: #7f1d1d; }
+    .enforcement-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+    .enforcement-card { background: #fafbfd; border: 1px solid #e6ebf2; border-radius: 12px; padding: 16px 18px; }
+    .enforcement-title { font-size: 13px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+    .enforcement-desc { font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+    .report-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 26px; text-align: center; margin-top: 30px; }
+    .report-card h3 { font-size: 16px; font-weight: 700; color: #166534; margin-bottom: 8px; }
+    .report-card p { font-size: 13px; color: #14532d; margin-bottom: 16px; line-height: 1.65; }
+    .report-btn { background: #166534; color: #fff; border: none; border-radius: 9px; padding: 11px 24px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .report-btn:hover { background: #14532d; }
+    footer { background: var(--navy); border-top: 0.5px solid var(--border-dark); padding: 24px 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    footer span { font-size: 12px; color: var(--text-faint); }
+    footer .footer-logo { color: #fff; font-weight: 700; letter-spacing: 0.5px; }
+    footer .footer-logo em { font-style: normal; color: var(--blue); }
+    @media (max-width: 700px) { .doc { padding: 26px 22px; } .main { padding: 24px 14px 30px; } .enforcement-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<nav>
+  <div class="nav-logo" onclick="window.location.href='index.html'">SUPPLY<em>GRID</em></div>
+  <button class="nav-btn" onclick="window.location.href='index.html'">← Back to search</button>
+</nav>
+
+<div class="main">
+  <div class="doc">
+    <h1>Anti-counterfeiting and trust policy</h1>
+    <div class="sub">SupplyGrid is committed to maintaining a marketplace where buyers can trust what they source.</div>
+    <div class="updated">Last updated: June 2026</div>
+
+    <div class="callout">
+      <div class="callout-title">Our commitment</div>
+      <p>Counterfeiting and fraud in the electronic components industry endanger national security, aerospace and defense systems, medical devices, and industrial equipment. SupplyGrid takes this seriously. Every supplier on the platform must agree to and comply with this policy as a condition of membership.</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">What SupplyGrid prohibits</div>
+      <div class="prohibited">
+        <div class="prohibited-title">The following are grounds for immediate removal</div>
+        <ul>
+          <li>Selling, brokering, or representing counterfeit, fraudulent, or misrepresented electronic components</li>
+          <li>Listing parts as stocked when they are not physically in possession or under confirmed purchase order</li>
+          <li>Providing false certification documentation or misrepresenting certifications held</li>
+          <li>Engaging in any form of online fraud, identity misrepresentation, or deceptive trade practices</li>
+          <li>Attempting to circumvent the platform's trust and verification systems</li>
+          <li>Misrepresenting the manufacturer, date code, condition, or specification of any listed component</li>
+        </ul>
+      </div>
+      <p>SupplyGrid does not take possession of parts, process payments, or guarantee the quality of any transaction. Members bear responsibility for their own due diligence when sourcing components.</p>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Supplier quality indicators</div>
+      <p>SupplyGrid uses several indicators to help buyers assess supplier credibility. None of these are guarantees, but together they provide meaningful signals.</p>
+      <ul>
+        <li><strong>Stocked vs brokered</strong> — Suppliers must accurately declare whether they physically hold inventory or are brokering it. This is the single most important disclosure on the platform.</li>
+        <li><strong>Verified Business badge</strong> — Requires submission of business license, registered address, tax ID, and two independent trade references.</li>
+        <li><strong>Certified Supplier badge</strong> — Requires Verified Business status plus documented quality certifications such as ISO 9001, AS9120, AS6081, AS6171, or IDEA-STD-1010.</li>
+        <li><strong>Authorized Supplier designation</strong> — Indicates the supplier has stated authorization from a specific manufacturer. SupplyGrid notes this as declared by the supplier.</li>
+        <li><strong>5-criteria buyer ratings</strong> — Covers responsiveness, quoting, listing accuracy, delivery quality, and return handling. Submitted by verified buyers after transactions.</li>
+        <li><strong>Trade association membership</strong> — IDEA, ERAI, ECIA, IPC, and SMTA membership can be declared and displayed on supplier profiles.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Complaint handling and enforcement</div>
+      <p>Any buyer can file a complaint against a listing or supplier using the report button on any search result. Complaints are reviewed by SupplyGrid and handled as follows.</p>
+      <div class="enforcement-grid">
+        <div class="enforcement-card">
+          <div class="enforcement-title">Complaint review</div>
+          <div class="enforcement-desc">All complaints are reviewed within 48 hours. Suppliers are not notified unless action is taken.</div>
+        </div>
+        <div class="enforcement-card">
+          <div class="enforcement-title">Warning and investigation</div>
+          <div class="enforcement-desc">First or ambiguous complaints trigger an investigation. Suppliers may be contacted for documentation.</div>
+        </div>
+        <div class="enforcement-card">
+          <div class="enforcement-title">Listing removal</div>
+          <div class="enforcement-desc">Confirmed inaccurate listings are removed immediately. Suppliers are notified with explanation.</div>
+        </div>
+        <div class="enforcement-card">
+          <div class="enforcement-title">Account termination</div>
+          <div class="enforcement-desc">Three confirmed violations, or a single confirmed counterfeit complaint, results in permanent removal.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Protecting yourself as a buyer</div>
+      <p>SupplyGrid's trust signals are tools to assist your decision-making, not guarantees. We recommend the following practices when sourcing from any independent distributor or broker.</p>
+      <ul>
+        <li>Prefer suppliers with Verified Business or Certified Supplier badges and established buyer ratings</li>
+        <li>For aerospace, defense, or medical applications, prioritize suppliers with AS9120, AS6081, or AS6171 certifications</li>
+        <li>Request a Certificate of Conformance and traceability documentation on all orders where application criticality warrants it</li>
+        <li>For large orders from unknown suppliers, consider having parts tested at an independent facility before acceptance</li>
+        <li>Report any discrepancy between what was listed and what was received using the report button on the listing</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Reporting suspected counterfeits to authorities</div>
+      <p>If you receive parts you believe to be counterfeit, in addition to filing a complaint with SupplyGrid you should consider reporting to the relevant authorities in your jurisdiction.</p>
+      <ul>
+        <li><strong>USA</strong> — IPR Center (hsicrimes.dhs.gov), FBI Internet Crime Complaint Center (ic3.gov), US Customs and Border Protection</li>
+        <li><strong>Europe</strong> — EUIPO Observatory IP Enforcement Portal, relevant national customs authority</li>
+        <li><strong>Industry</strong> — IDEA (idea-inc.org), ERAI (erai.com), GIDEP (gidep.org)</li>
+      </ul>
+      <p>SupplyGrid cooperates with law enforcement investigations involving suspected counterfeit components distributed through the platform.</p>
+    </div>
+
+    <div class="report-card">
+      <h3>Report a supplier or listing</h3>
+      <p>If you have experienced inaccurate stock, suspected counterfeits, or unresponsive suppliers on SupplyGrid, report it using the flag button on any search result. Reports are reviewed within 48 hours.</p>
+      <button class="report-btn" onclick="window.location.href='index.html'">Return to search</button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span class="footer-logo">SUPPLY<em>GRID</em></span>
+  <span>Anti-counterfeiting policy · Last updated June 2026</span>
+</footer>
+</body>
+</html>
